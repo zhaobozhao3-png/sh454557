@@ -10,10 +10,12 @@ const serverSource = fs.readFileSync(
 );
 
 describe('backend GPT Image advanced params forwarding', () => {
-  it('only enables advanced params for gpt-image-2-fast and gpt-image-2-plus', () => {
-    expect(serverSource).toContain("const GPT_IMAGE_ADVANCED_PARAM_MODELS = new Set(['gpt-image-2-fast', 'gpt-image-2-plus'])");
-    expect(serverSource).toContain('if (!supportsGptImageAdvancedParams(model))');
-    expect(serverSource).toContain('return { ...DEFAULT_GPT_IMAGE_ADVANCED_PARAMS }');
+  it('does not contain legacy GPT Image SKU gating or token suffix logic', () => {
+    expect(serverSource).not.toContain('gpt-image-2-fast');
+    expect(serverSource).not.toContain('gpt-image-2-plus');
+    expect(serverSource).not.toContain('gpt-image-2-pro');
+    expect(serverSource).not.toContain('TOKEN_SUFFIX');
+    expect(serverSource).not.toContain('supportsGptImageAdvancedParams(');
   });
 
   it('forwards quality/background/output_format and conditional style in multipart edits', () => {
@@ -28,5 +30,11 @@ describe('backend GPT Image advanced params forwarding', () => {
     expect(serverSource).toContain('background: advancedParams.background');
     expect(serverSource).toContain("output_format: 'png'");
     expect(serverSource).toContain("advancedParams.style === 'vivid' || advancedParams.style === 'natural' ? { style: advancedParams.style } : {}");
+  });
+
+  it('routes OpenAI image endpoint by mode rather than legacy model names', () => {
+    expect(serverSource).toContain("request.mode === 'image-to-image'");
+    expect(serverSource).toContain("/v1/images/edits");
+    expect(serverSource).toContain("/v1/images/generations");
   });
 });

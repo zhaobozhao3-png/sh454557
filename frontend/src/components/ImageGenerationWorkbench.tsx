@@ -13,7 +13,8 @@ import { AgentAssetPickerDialog, AgentTextAssetPickerDialog } from '@/components
 import { GenerationParamsBar, type GenerationParamsValue } from '@/components/GenerationParamsBar';
 import { ConfirmDialog } from '@/components/workspace/dialogs/ConfirmDialog';
 import { streamPromptOptimize, type StreamPromptOptimizeHandle } from '@/lib/prompt-optimize-client';
-import { getApiKeyFromStorage, loadJsonFromStorage, saveJsonToStorage } from '@/lib/settings-storage';
+import { loadJsonFromStorage, saveJsonToStorage } from '@/lib/settings-storage';
+import { requireDefaultConfiguredTextModel } from '@/lib/model-endpoints';
 import { addTextAsset, getAssetBlob, type ImageAsset, type TextAsset } from '@/lib/asset-store';
 import { MODEL_IMAGE_LIMITS, MODEL_OPTIONS, type ModelId } from '@/lib/gemini-config';
 import {
@@ -233,8 +234,8 @@ export function ImageGenerationWorkbench({
   }, [model, outputSize, customSize, aspectRatio, temperature, gptImageAdvancedParams, parallelCount, settingsReady]);
 
   const handleOptimize = useCallback(() => {
-    const apiKey = getApiKeyFromStorage();
-    if (!apiKey || !prompt.trim()) return;
+    const textModel = requireDefaultConfiguredTextModel('promptOptimize');
+    if (!prompt.trim()) return;
 
     optimizeHandleRef.current?.abort();
     setOptimizedText('');
@@ -244,12 +245,13 @@ export function ImageGenerationWorkbench({
 
     const images = pendingFiles.map(f => ({ dataUrl: f.dataUrl, mimeType: f.mimeType }));
     const handle = streamPromptOptimize(
-      { apiKey, mode: currentMode, prompt: prompt.trim(), ...(images.length > 0 ? { images } : {}) },
+      { apiKey: textModel.apiKey, mode: currentMode, prompt: prompt.trim(), ...(images.length > 0 ? { images } : {}) },
       {
         onDelta(token) { setOptimizedText(prev => prev + token); },
         onDone() { setOptimizing(false); },
         onError(err) { setOptimizeError(err.message); setOptimizing(false); },
       },
+      textModel.baseUrl,
     );
     optimizeHandleRef.current = handle;
   }, [currentMode, pendingFiles, prompt]);

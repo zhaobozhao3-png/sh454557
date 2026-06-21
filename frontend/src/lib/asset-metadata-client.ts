@@ -12,6 +12,7 @@ export interface AssetMetadataSuggestion {
 
 export interface GenerateAssetMetadataInput {
   apiKey: string;
+  model?: string;
   baseUrl?: string;
   imageDataUrl: string;
   currentName: string;
@@ -51,7 +52,7 @@ function parseSuggestion(text: string): AssetMetadataSuggestion {
 
 export async function generateAssetMetadata(input: GenerateAssetMetadataInput): Promise<AssetMetadataSuggestion> {
   const body = {
-    model: ASSET_METADATA_MODEL,
+    model: input.model || ASSET_METADATA_MODEL,
     reasoning: { effort: 'low' as const },
     input: [
       {

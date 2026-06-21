@@ -61,7 +61,7 @@ import {
 import { createPortal } from 'react-dom';
 import { PromptOptimizeDialog } from '@/components/PromptOptimizeDialog';
 import { streamPromptOptimize, type StreamPromptOptimizeHandle } from '@/lib/prompt-optimize-client';
-import { getApiKeyFromStorage } from '@/lib/settings-storage';
+import { requireDefaultConfiguredTextModel } from '@/lib/model-endpoints';
 import { AgentImageGallery } from '@/components/agent/AgentImageGallery';
 import { AgentGenerationProgress } from '@/components/agent/AgentGenerationResult';
 import { CustomSizeDialog } from '@/components/CustomSizeDialog';
@@ -82,7 +82,6 @@ interface AgentParamsSettings {
   gptImageBackground: GptImageBackground;
   parallelCount: ParallelCount;
   customSize?: string;
-  useTokenMode: boolean;
 }
 
 interface AgentChatWorkspaceProps {
@@ -413,9 +412,9 @@ export function AgentChatWorkspace({ wideMode = false, disabled = false, onConfi
   const optimizeHandleRef = useRef<StreamPromptOptimizeHandle | null>(null);
 
   const handleOptimize = useCallback(() => {
-    const apiKey = getApiKeyFromStorage();
+    const textModel = requireDefaultConfiguredTextModel('promptOptimize');
     const editor = editorRef.current;
-    if (!apiKey || !editor) return;
+    if (!editor) return;
 
     const text = editor.getText();
     if (!text.trim()) return;
@@ -457,12 +456,13 @@ export function AgentChatWorkspace({ wideMode = false, disabled = false, onConfi
     setOptimizeOpen(true);
 
     const handle = streamPromptOptimize(
-      { apiKey, mode: 'agent', prompt: text, context: context || undefined },
+      { apiKey: textModel.apiKey, mode: 'agent', prompt: text, context: context || undefined },
       {
         onDelta(token) { setOptimizedText(prev => prev + token); },
         onDone() { setOptimizing(false); },
         onError(err) { setOptimizeError(err.message); setOptimizing(false); },
       },
+      textModel.baseUrl,
     );
     optimizeHandleRef.current = handle;
   }, [agent.messages, agent.images]);

@@ -18,7 +18,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  *   temperature: 1,
  * });
  * // 局部更新：
- * updateSettings({ model: 'gpt-image-2-plus' });
+ * updateSettings({ model: 'gpt-image-2' });
  */
 export function usePersistedSettings<T extends Record<string, unknown>>(
   key: string,

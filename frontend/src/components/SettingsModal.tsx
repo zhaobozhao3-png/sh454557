@@ -69,7 +69,7 @@ function cloneTextModel(model: TextModelConfig): TextModelConfig {
 }
 
 function createImageModelDraft(): ImageModelConfig {
-  const preset = BUILTIN_IMAGE_PRESETS['gpt-image-2-pro'];
+  const preset = BUILTIN_IMAGE_PRESETS['gpt-image-2'];
   return {
     id: generateModelId('img'),
     protocol: preset.protocol,
@@ -113,6 +113,26 @@ function getTextModelLabel(models: TextModelConfig[], id: string): string {
   return models.find((model) => model.id === id)?.name || id;
 }
 
+function normalizeDefaults(
+  defaults: DefaultModels,
+  imageModels: ImageModelConfig[],
+  textModels: TextModelConfig[],
+): DefaultModels {
+  const completeImageModels = imageModels.filter(isCompleteImageModel);
+  const completeTextModels = textModels.filter(isCompleteTextModel);
+  const firstImageModelId = completeImageModels[0]?.id || '';
+  const firstTextModelId = completeTextModels[0]?.id || '';
+
+  return {
+    textToImage: completeImageModels.some((model) => model.id === defaults.textToImage) ? defaults.textToImage : firstImageModelId,
+    imageToImage: completeImageModels.some((model) => model.id === defaults.imageToImage) ? defaults.imageToImage : firstImageModelId,
+    reversePrompt: completeTextModels.some((model) => model.id === defaults.reversePrompt) ? defaults.reversePrompt : firstTextModelId,
+    agent: completeTextModels.some((model) => model.id === defaults.agent) ? defaults.agent : firstTextModelId,
+    promptOptimize: completeTextModels.some((model) => model.id === defaults.promptOptimize) ? defaults.promptOptimize : firstTextModelId,
+    imageDescribe: completeTextModels.some((model) => model.id === defaults.imageDescribe) ? defaults.imageDescribe : firstTextModelId,
+  };
+}
+
 export function SettingsModal({ isOpen, onClose, onApiKeyChange }: SettingsModalProps) {
   const [imageModels, setImageModels] = useState<ImageModelConfig[]>([]);
   const [textModels, setTextModels] = useState<TextModelConfig[]>([]);
@@ -136,7 +156,7 @@ export function SettingsModal({ isOpen, onClose, onApiKeyChange }: SettingsModal
     const registry = loadRegistry();
     setImageModels(registry.imageModels.map(cloneImageModel));
     setTextModels(registry.textModels.map(cloneTextModel));
-    setDefaults({ ...registry.defaults });
+    setDefaults(normalizeDefaults(registry.defaults, registry.imageModels, registry.textModels));
     setSelectedImageModelId(registry.imageModels[0]?.id || '');
     setSelectedTextModelId(registry.textModels[0]?.id || '');
     setError(null);
@@ -146,6 +166,14 @@ export function SettingsModal({ isOpen, onClose, onApiKeyChange }: SettingsModal
     setBackupError(null);
     setBackupSuccess(null);
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setDefaults((prev) => {
+      const next = normalizeDefaults(prev, imageModels, textModels);
+      return JSON.stringify(next) === JSON.stringify(prev) ? prev : next;
+    });
+  }, [imageModels, isOpen, textModels]);
 
   const selectedImageModel = useMemo(
     () => imageModels.find((model) => model.id === selectedImageModelId) || null,
@@ -250,20 +278,10 @@ export function SettingsModal({ isOpen, onClose, onApiKeyChange }: SettingsModal
       return;
     }
 
-    const completeImageModels = imageModels.filter(isCompleteImageModel);
-    const completeTextModels = textModels.filter(isCompleteTextModel);
-
     const registry = {
       imageModels,
       textModels,
-      defaults: {
-        textToImage: completeImageModels.some((model) => model.id === defaults.textToImage) ? defaults.textToImage : completeImageModels[0].id,
-        imageToImage: completeImageModels.some((model) => model.id === defaults.imageToImage) ? defaults.imageToImage : completeImageModels[0].id,
-        reversePrompt: completeTextModels.some((model) => model.id === defaults.reversePrompt) ? defaults.reversePrompt : completeTextModels[0].id,
-        agent: completeTextModels.some((model) => model.id === defaults.agent) ? defaults.agent : completeTextModels[0].id,
-        promptOptimize: completeTextModels.some((model) => model.id === defaults.promptOptimize) ? defaults.promptOptimize : completeTextModels[0].id,
-        imageDescribe: completeTextModels.some((model) => model.id === defaults.imageDescribe) ? defaults.imageDescribe : completeTextModels[0].id,
-      },
+      defaults: normalizeDefaults(defaults, imageModels, textModels),
     };
 
     saveRegistry(registry);

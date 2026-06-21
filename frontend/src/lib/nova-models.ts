@@ -6,7 +6,7 @@ export type BuiltinImagePresetId =
   | 'gemini-2.5-flash-image'
   | 'gemini-3-pro-image-preview'
   | 'gemini-3.1-flash-image-preview'
-  | 'gpt-image-2-pro';
+  | 'gpt-image-2';
 
 export interface ImageModelConfig {
   id: string;
@@ -90,11 +90,11 @@ export const BUILTIN_IMAGE_PRESETS: Record<BuiltinImagePresetId, BuiltinImagePre
     maxOutputSize: '4K',
     supportsAdvancedParams: false,
   },
-  'gpt-image-2-pro': {
-    id: 'gpt-image-2-pro',
+  'gpt-image-2': {
+    id: 'gpt-image-2',
     protocol: 'openai',
     name: 'GPT Image 2',
-    modelId: 'gpt-image-2-pro',
+    modelId: 'gpt-image-2',
     baseUrl: 'https://api.openai.com',
     maxRefImages: 16,
     maxOutputSize: '4K',
@@ -155,7 +155,7 @@ function inferBuiltinPresetId(raw: Partial<ImageModelConfig>): BuiltinImagePrese
   const candidate = raw.builtinPreset || raw.id || raw.modelId;
   if (isBuiltinImagePresetId(candidate)) return candidate;
   if (String(raw.protocol || '').trim() === 'google') return 'gemini-3-pro-image-preview';
-  return 'gpt-image-2-pro';
+  return 'gpt-image-2';
 }
 
 function normalizeImageModelConfig(raw: Partial<ImageModelConfig>): ImageModelConfig | null {

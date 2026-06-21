@@ -1,9 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { createNovaTask, getNovaTask, ackNovaTask, type ImageReference } from '@/lib/ccode-task-client';
+import { createNovaTask, getNovaTask, ackNovaTask, resolveImageTaskProvider, type ImageReference } from '@/lib/ccode-task-client';
 import { novaTaskSocket } from '@/lib/ccode-task-socket';
-import { getApiKeyFromStorage } from '@/lib/settings-storage';
 import { generateUUID } from '@/lib/uuid';
 import {
   downloadAndStoreImages,
@@ -222,7 +221,7 @@ export function useGifWorkflow(): UseGifWorkflowResult {
     queueMicrotask(() => {
       const initial = loadActiveGifJob();
       if (!initial) {
-        setIsApiKeyMissing(!getApiKeyFromStorage());
+        setIsApiKeyMissing(false);
         return;
       }
       jobRef.current = initial;
@@ -254,7 +253,7 @@ export function useGifWorkflow(): UseGifWorkflowResult {
         .catch(() => subscribeServerTask(initial.serverTaskId!));
     }
 
-      setIsApiKeyMissing(!getApiKeyFromStorage());
+      setIsApiKeyMissing(false);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -276,10 +275,16 @@ export function useGifWorkflow(): UseGifWorkflowResult {
   }, []);
 
   const submitGrid = useCallback(async (input: SubmitInput) => {
-    const apiKey = getApiKeyFromStorage();
-    if (!apiKey) {
+    let provider;
+    try {
+      provider = resolveImageTaskProvider(input.model);
+    } catch {
       setIsApiKeyMissing(true);
-      throw new Error('请先配置 API 密钥');
+      throw new Error('请先完成 GIF 图片模型配置');
+    }
+    if (!provider.apiKey || !provider.baseUrl) {
+      setIsApiKeyMissing(true);
+      throw new Error('请先完成 GIF 图片模型配置');
     }
     setIsApiKeyMissing(false);
 
@@ -328,9 +333,9 @@ export function useGifWorkflow(): UseGifWorkflowResult {
     try {
       // TODO: 从模型注册表读取实际的 baseUrl 和 protocol
       const serverTaskId = await createNovaTask({
-        apiKey,
-        baseUrl: 'https://api.openai.com',
-        protocol: 'openai',
+        apiKey: provider.apiKey,
+        baseUrl: provider.baseUrl,
+        protocol: provider.protocol,
         mode: 'image-to-image',
         prompt: finalPrompt,
         outputSize: GIF_GRID_OUTPUT_SIZE,

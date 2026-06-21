@@ -17,7 +17,6 @@ import { GptImageAdvancedParamsControl } from '@/components/GptImageAdvancedPara
 import { cn } from '@/lib/utils';
 import {
   GIF_MAX_REF_IMAGES,
-  GIF_MODEL_OPTIONS,
   type GifModel,
 } from '@/lib/gif-job-store';
 import type { RefImageData } from '@/lib/job-store';
@@ -32,6 +31,7 @@ export interface GifParametersPanelProps {
   prompt: string;
   onPromptChange: (value: string) => void;
   model: GifModel;
+  modelOptions: { value: GifModel; label: string }[];
   modelPopoverOpen: boolean;
   onModelPopoverOpenChange: (open: boolean) => void;
   onModelChange: (value: GifModel) => void;
@@ -58,8 +58,8 @@ export interface GifParametersPanelProps {
   onClear: () => void;
 }
 
-function formatModelLabel(model: GifModel): string {
-  return GIF_MODEL_OPTIONS.find(option => option.value === model)?.label || model;
+function formatModelLabel(model: GifModel, modelOptions: { value: GifModel; label: string }[]): string {
+  return modelOptions.find(option => option.value === model)?.label || model;
 }
 
 export function GifParametersPanel(props: GifParametersPanelProps) {
@@ -76,6 +76,23 @@ export function GifParametersPanel(props: GifParametersPanelProps) {
           </p>
         </div>
         <Button onClick={props.onConfigureApiKey}>配置</Button>
+      </div>
+    );
+  }
+
+  if (props.modelOptions.length === 0) {
+    return (
+      <div className="flex min-h-72 flex-col items-center justify-center gap-4 rounded-xl border border-border bg-muted/40 px-4 py-8 text-center">
+        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/10 text-primary">
+          <Info className="h-5 w-5" />
+        </div>
+        <div className="max-w-md">
+          <p className="text-base font-medium text-foreground">没有可用的 GIF 模型</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            请先在设置中完成至少一个 image 系列的 4K 图片模型配置。banana 系列不支持这里需要的自定义分辨率，所以不会显示。
+          </p>
+        </div>
+        <Button onClick={props.onConfigureApiKey}>打开设置</Button>
       </div>
     );
   }
@@ -155,10 +172,10 @@ export function GifParametersPanel(props: GifParametersPanelProps) {
               title="模型"
             >
               <Sparkles className="h-3 w-3" />
-              <span className="shrink-0 truncate text-[11px]">{formatModelLabel(props.model)}</span>
+              <span className="shrink-0 truncate text-[11px]">{formatModelLabel(props.model, props.modelOptions)}</span>
             </PopoverTrigger>
             <PopoverContent className="w-48 p-1" align="start">
-              {GIF_MODEL_OPTIONS.map(option => (
+              {props.modelOptions.map(option => (
                 <button
                   key={option.value}
                   type="button"
@@ -174,7 +191,7 @@ export function GifParametersPanel(props: GifParametersPanelProps) {
                   {option.label}
                 </button>
               ))}
-                <p className="text-[11px] text-muted-foreground px-2.5 py-1">仅支持 4K 模型</p>
+              <p className="px-2.5 py-1 text-[11px] text-muted-foreground">仅显示支持 4K 自定义分辨率的 image 系列模型，banana 系列不显示</p>
             </PopoverContent>
           </Popover>
 
@@ -234,6 +251,9 @@ export function GifParametersPanel(props: GifParametersPanelProps) {
             </Button>
           </div>
         </div>
+        <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+          这里仅支持 image 系列的 4K 模型。banana 系列不支持当前动图网格所需的自定义分辨率，因此不提供选择。
+        </p>
       </div>
     </div>
   );

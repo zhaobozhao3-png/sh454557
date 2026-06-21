@@ -41,7 +41,7 @@ async function toImageReference(image: ReferenceImage): Promise<ImageReference |
   return { data, mimeType: mimeType || image.type || "image/png" };
 }
 
-/** 合成实际提交用模型 ID：base 模型 +（按量付费且模型支持时）-tokens 后缀。 */
+/** 合成实际提交用模型 ID。 */
 function resolveTaskModel(config: CanvasGenerationConfig): string {
   return normalizeModel(config.model);
 }

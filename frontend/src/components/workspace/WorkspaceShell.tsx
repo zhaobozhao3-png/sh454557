@@ -157,7 +157,6 @@ export function WorkspaceShell() {
         aspectRatio: workspace.retryData.aspectRatio,
         temperature: workspace.retryData.temperature,
         model: workspace.retryData.model,
-        useTokenMode: workspace.retryData.useTokenMode,
         gptImageQuality: workspace.retryData.gptImageQuality,
         gptImageStyle: workspace.retryData.gptImageStyle,
         gptImageBackground: workspace.retryData.gptImageBackground,

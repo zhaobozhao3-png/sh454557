@@ -25,10 +25,7 @@ export type CanvasImageGenerationType = "generation" | "edit";
 
 /** 单个配置/编排节点的生成参数（写在节点上）。 */
 export type CanvasGenerationConfig = {
-  /** base host ModelId（是否按量付费由 useTokenMode 决定，提交时再合成 -tokens） */
   model: string;
-  /** 按量付费（token 计费）开关；提交生成时若模型支持则附加 -tokens 后缀 */
-  useTokenMode?: boolean;
   outputSize: OutputSize;
   aspectRatio: AspectRatio;
   customSize?: string;

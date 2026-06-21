@@ -87,16 +87,6 @@ function resolveNovaApiBaseUrl() {
   return normalizeBaseUrl(getRuntimeEnv().NOVA_API_BASE_URL) || 'https://api.openai.com';
 }
 
-function normalizeOpenAiBaseUrl(url) {
-  const normalized = normalizeBaseUrl(url);
-  return normalized.endsWith('/v1') ? normalized.slice(0, -3) : normalized;
-}
-
-function normalizeGoogleBaseUrl(url) {
-  const normalized = normalizeBaseUrl(url);
-  return normalized.endsWith('/v1beta') ? normalized.slice(0, -7) : normalized;
-}
-
 function hashPromptGalleryPassword(password) {
   return createHash('sha256')
     .update(`${PROMPT_GALLERY_PASSWORD_SALT}${String(password || '')}`)
@@ -112,13 +102,6 @@ const REQUEST_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const IMAGE_STREAM_UNSUPPORTED_PATTERN = /(?:stream.*(?:unsupported|not supported|unknown|unrecognized|invalid)|(?:unsupported|not supported|unknown|unrecognized|invalid).*stream|stream.*(?:不支持|未知|无效)|(?:不支持|未知|无效).*stream)/i;
 // 开源版：不再硬编码模型列表，由前端通过 protocol 字段指定协议类型
 const VALID_PROTOCOLS = new Set(['google', 'openai']);
-const GPT_IMAGE_ADVANCED_PARAM_MODELS = new Set(['gpt-image-2-fast', 'gpt-image-2-plus']);
-const TOKEN_SUFFIX = '-tokens';
-
-/** 去掉 -tokens 后缀，返回基础模型 ID */
-function getBaseModel(model) {
-  return model.endsWith(TOKEN_SUFFIX) ? model.slice(0, -TOKEN_SUFFIX.length) : model;
-}
 const GPT_IMAGE_QUALITIES = new Set(['auto', 'high', 'medium', 'low']);
 const GPT_IMAGE_STYLES = new Set(['auto', 'vivid', 'natural']);
 const GPT_IMAGE_BACKGROUNDS = new Set(['auto', 'transparent', 'opaque']);
@@ -615,10 +598,6 @@ function normalizeError(error) {
   return message.length > 200 ? message.slice(0, 200) + '…' : message;
 }
 
-function supportsGptImageAdvancedParams(model) {
-  return GPT_IMAGE_ADVANCED_PARAM_MODELS.has(model);
-}
-
 function validateEnumValue(value, validValues, fieldName) {
   if (value === undefined || value === null || value === '') return undefined;
   if (!validValues.has(value)) {
@@ -627,11 +606,7 @@ function validateEnumValue(value, validValues, fieldName) {
   return value;
 }
 
-function normalizeGptImageAdvancedParams(model, params = {}) {
-  if (!supportsGptImageAdvancedParams(model)) {
-    return { ...DEFAULT_GPT_IMAGE_ADVANCED_PARAMS };
-  }
-
+function normalizeGptImageAdvancedParams(params = {}) {
   const quality = validateEnumValue(params.gptImageQuality, GPT_IMAGE_QUALITIES, 'quality');
   const style = validateEnumValue(params.gptImageStyle, GPT_IMAGE_STYLES, 'style');
   const background = validateEnumValue(params.gptImageBackground, GPT_IMAGE_BACKGROUNDS, 'background');
@@ -744,11 +719,6 @@ function isImageSizeWithinLimits(width, height, maxSide) {
   );
 }
 
-function isGptImage2ProResolutionSupported(size) {
-  const parsed = parseImageSize(size);
-  return Boolean(parsed && isImageSizeWithinLimits(parsed.width, parsed.height, getCustomSizeMaxSide('gpt-image-2-pro')));
-}
-
 function getGptImageSize(outputSize, aspectRatio) {
   if (outputSize === 'auto' || outputSize === '512' || aspectRatio === 'auto') return undefined;
   const match = String(aspectRatio || '').match(/^(\d+):(\d+)$/);
@@ -785,12 +755,6 @@ function getGptImageSize(outputSize, aspectRatio) {
   return `${width}x${height}`;
 }
 
-function getCustomSizeMaxSide(model) {
-  if (model === 'gpt-image-2-plus') return 3840;
-  if (model === 'gpt-image-2-pro') return 3840;
-  return undefined;
-}
-
 function normalizeCustomImageSize(size, maxSide) {
   const parsed = parseImageSize(size);
   if (!parsed) return undefined;
@@ -804,33 +768,19 @@ function normalizeCustomImageSize(size, maxSide) {
 }
 
 function getSupportedGptImageSize(model, outputSize, aspectRatio) {
-  const size = getGptImageSize(outputSize, aspectRatio);
-  if (model === 'gpt-image-2-pro' && !isGptImage2ProResolutionSupported(size)) return undefined;
-  return size;
-}
-
-function getGptImagePrompt(model, prompt, aspectRatio) {
-  return (model === 'gpt-image-2' || model === 'gpt-image-2-fast') && aspectRatio !== 'auto' ? `${aspectRatio}; ${prompt}` : prompt;
-}
-
-function getGptImageEndpoint(model, mode) {
-  return (model === 'gpt-image-2' || model === 'gpt-image-2-fast' || model === 'gpt-image-2-plus' || model === 'gpt-image-2-pro') && mode === 'image-to-image'
-    ? '/v1/images/edits'
-    : '/v1/images/generations';
+  return getGptImageSize(outputSize, aspectRatio);
 }
 
 function getGptImageRequestAdvancedParams(request) {
-  if (!supportsGptImageAdvancedParams(getBaseModel(request.model))) return undefined;
-  return normalizeGptImageAdvancedParams(getBaseModel(request.model), request);
+  return normalizeGptImageAdvancedParams(request);
 }
 
 function createGptImageRequestInit(apiKey, request, resolvedSize, options = {}) {
-  const baseModel = getBaseModel(request.model);
-  const prompt = getGptImagePrompt(baseModel, request.prompt, request.aspectRatio);
+  const prompt = request.prompt;
   const advancedParams = getGptImageRequestAdvancedParams(request);
   const stream = Boolean(options.stream);
 
-  if ((baseModel === 'gpt-image-2' || baseModel === 'gpt-image-2-fast' || baseModel === 'gpt-image-2-plus' || baseModel === 'gpt-image-2-pro') && request.mode === 'image-to-image') {
+  if (request.mode === 'image-to-image') {
     const formData = new FormData();
     formData.append('model', request.model);
     formData.append('prompt', prompt);
@@ -1047,9 +997,11 @@ function isImageStreamUnsupportedError(error) {
 
 async function requestGptImage(apiKey, request, resolvedSize, options = {}) {
   const baseUrl = options.baseUrl || resolveNovaApiBaseUrl();
-  const baseModel = getBaseModel(request.model);
+  const endpoint = request.mode === 'image-to-image'
+    ? '/v1/images/edits'
+    : '/v1/images/generations';
   const response = await fetchWithTimeout(
-    `${baseUrl}${getGptImageEndpoint(baseModel, request.mode)}`,
+    `${baseUrl}${endpoint}`,
     createGptImageRequestInit(apiKey, request, resolvedSize, options)
   );
   return parseGptImageResponse(response);
@@ -1083,72 +1035,6 @@ async function fetchWithTimeout(url, init) {
     return await fetch(url, { ...init, signal: controller.signal });
   } finally {
     clearTimeout(timeout);
-  }
-}
-
-async function checkSingleModelAvailability(entry) {
-  const modelId = String(entry?.id || '').trim();
-  const actualName = String(entry?.name || entry?.modelId || modelId).trim() || modelId;
-  const protocol = String(entry?.protocol || '').trim();
-  const upstreamModelId = String(entry?.modelId || '').trim();
-  const apiKey = String(entry?.apiKey || '').trim();
-  const baseUrl = String(entry?.baseUrl || '').trim();
-
-  if (!modelId || !upstreamModelId || !apiKey || !baseUrl || !VALID_PROTOCOLS.has(protocol)) {
-    return {
-      modelId,
-      actualName,
-      available: false,
-      message: '模型配置不完整',
-    };
-  }
-
-  try {
-    if (protocol === 'openai') {
-      const url = `${normalizeOpenAiBaseUrl(baseUrl)}/v1/models/${encodeURIComponent(upstreamModelId)}`;
-      const response = await fetchWithTimeout(url, {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-        },
-      });
-      if (!response.ok) {
-        const errorText = getUpstreamErrorText(await response.text());
-        return {
-          modelId,
-          actualName,
-          available: false,
-          message: `${response.status}${errorText ? ` ${errorText}` : ''}`,
-        };
-      }
-      return { modelId, actualName, available: true };
-    }
-
-    const url = `${normalizeGoogleBaseUrl(baseUrl)}/v1beta/models/${encodeURIComponent(upstreamModelId)}`;
-    const response = await fetchWithTimeout(url, {
-      method: 'GET',
-      headers: {
-        'x-goog-api-key': apiKey,
-        Authorization: `Bearer ${apiKey}`,
-      },
-    });
-    if (!response.ok) {
-      const errorText = getUpstreamErrorText(await response.text());
-      return {
-        modelId,
-        actualName,
-        available: false,
-        message: `${response.status}${errorText ? ` ${errorText}` : ''}`,
-      };
-    }
-    return { modelId, actualName, available: true };
-  } catch (error) {
-    return {
-      modelId,
-      actualName,
-      available: false,
-      message: normalizeError(error),
-    };
   }
 }
 
@@ -1595,14 +1481,6 @@ async function handleApi(req, res, pathname) {
       const password = String(body?.password || '');
       const ok = hashPromptGalleryPassword(password) === hashPromptGalleryPassword(expected);
       sendJson(res, 200, { ok });
-      return true;
-    }
-
-    if (req.method === 'POST' && apiPathname === '/api/nova/check-models') {
-      const body = await readJsonBody(req);
-      const models = Array.isArray(body?.models) ? body.models : [];
-      const results = await Promise.all(models.map(checkSingleModelAvailability));
-      sendJson(res, 200, { models: results });
       return true;
     }
 

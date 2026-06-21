@@ -49,3 +49,13 @@ export function getDefaultConfiguredTextModel(
   const registry = loadRegistry();
   return getDefaultTextModel(registry, task);
 }
+
+export function requireDefaultConfiguredTextModel(
+  task: 'reversePrompt' | 'agent' | 'promptOptimize' | 'imageDescribe',
+): TextModelConfig {
+  const configured = getDefaultConfiguredTextModel(task);
+  if (!configured?.apiKey || !configured.baseUrl || !configured.modelId) {
+    throw new Error('请先在设置中完成默认文本模型配置');
+  }
+  return configured;
+}

@@ -15,7 +15,7 @@ import { PromptOptimizeDialog } from '@/components/PromptOptimizeDialog';
 import { AgentAssetPickerDialog, AgentTextAssetPickerDialog } from '@/components/agent/AgentAssetPickerDialog';
 import { ConfirmDialog } from '@/components/workspace/dialogs/ConfirmDialog';
 import { streamPromptOptimize, type StreamPromptOptimizeHandle } from '@/lib/prompt-optimize-client';
-import { getApiKeyFromStorage } from '@/lib/settings-storage';
+import { requireDefaultConfiguredTextModel } from '@/lib/model-endpoints';
 import { addTextAsset, getAssetBlob, type ImageAsset, type TextAsset } from '@/lib/asset-store';
 import {
   Popover,
@@ -153,8 +153,8 @@ export function ImageToImageForm({
   const optimizeHandleRef = useRef<StreamPromptOptimizeHandle | null>(null);
 
   const handleOptimize = useCallback(() => {
-    const apiKey = getApiKeyFromStorage();
-    if (!apiKey || !prompt.trim()) return;
+    const textModel = requireDefaultConfiguredTextModel('promptOptimize');
+    if (!prompt.trim()) return;
 
     optimizeHandleRef.current?.abort();
     setOptimizedText('');
@@ -164,12 +164,13 @@ export function ImageToImageForm({
 
     const images = pendingFiles.map(f => ({ dataUrl: f.dataUrl, mimeType: f.mimeType }));
     const handle = streamPromptOptimize(
-      { apiKey, mode: 'image-to-image', prompt: prompt.trim(), images },
+      { apiKey: textModel.apiKey, mode: 'image-to-image', prompt: prompt.trim(), images },
       {
         onDelta(token) { setOptimizedText(prev => prev + token); },
         onDone() { setOptimizing(false); },
         onError(err) { setOptimizeError(err.message); setOptimizing(false); },
       },
+      textModel.baseUrl,
     );
     optimizeHandleRef.current = handle;
   }, [prompt, pendingFiles]);

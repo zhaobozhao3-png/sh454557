@@ -7,7 +7,7 @@ import { PromptOptimizeDialog } from '@/components/PromptOptimizeDialog';
 import { streamPromptOptimize, type StreamPromptOptimizeHandle } from '@/lib/prompt-optimize-client';
 import type { RefImageData } from '@/lib/job-store';
 import { cn } from '@/lib/utils';
-import { getApiKeyFromStorage, loadJsonFromStorage, saveJsonToStorage } from '@/lib/settings-storage';
+import { loadJsonFromStorage, saveJsonToStorage } from '@/lib/settings-storage';
 import { GifParametersPanel, type GifUploadedRef } from '@/components/gif/GifParametersPanel';
 import { GifReviewPanel } from '@/components/gif/GifReviewPanel';
 import { MissingApiKeyDialog } from '@/components/MissingApiKeyDialog';
@@ -31,6 +31,8 @@ import {
   GIF_DEFAULT_FRAME_PADDING,
   GIF_MAX_FRAME_PADDING,
   GIF_MAX_REF_IMAGES,
+  getDefaultGifModelId,
+  getGifCompatibleModels,
   needsOverwriteConfirm,
   type GifModel,
 } from '@/lib/gif-job-store';
@@ -38,6 +40,7 @@ import {
 import { MAX_UPLOAD_SIZE_BYTES } from '@/lib/constants';
 import { useGifWorkflow } from '@/hooks/useGifWorkflow';
 import type { ImageActionPayload } from '@/lib/image-actions';
+import { getDefaultConfiguredTextModel } from '@/lib/model-endpoints';
 
 interface GifGenerationWorkspaceProps {
   wideMode?: boolean;
@@ -63,9 +66,10 @@ interface PersistedSettings {
 
 export function GifGenerationWorkspace({ wideMode = false, hasApiKey, onConfigureApiKey, onError, showToast }: GifGenerationWorkspaceProps) {
   const workflow = useGifWorkflow();
+  const gifModelOptions = useMemo(() => getGifCompatibleModels(), []);
 
   const [prompt, setPrompt] = useState('');
-  const [model, setModel] = useState<GifModel>('gpt-image-2-plus');
+  const [model, setModel] = useState<GifModel>(getDefaultGifModelId());
   const [gptImageAdvancedParams, setGptImageAdvancedParams] = useState<GptImageAdvancedParams>(DEFAULT_GPT_IMAGE_ADVANCED_PARAMS);
   const [loop, setLoop] = useState(true);
   const [closedLoop, setClosedLoop] = useState(false);
@@ -101,8 +105,8 @@ export function GifGenerationWorkspace({ wideMode = false, hasApiKey, onConfigur
   const optimizeHandleRef = useRef<StreamPromptOptimizeHandle | null>(null);
 
   const handleOptimize = useCallback(() => {
-    const apiKey = getApiKeyFromStorage();
-    if (!apiKey || !prompt.trim()) return;
+    const textModel = getDefaultConfiguredTextModel('promptOptimize');
+    if (!textModel?.apiKey || !textModel.baseUrl || !textModel.modelId || !prompt.trim()) return;
 
     optimizeHandleRef.current?.abort();
     setOptimizedText('');
@@ -112,12 +116,13 @@ export function GifGenerationWorkspace({ wideMode = false, hasApiKey, onConfigur
 
     const images = refFiles.map(f => ({ dataUrl: f.dataUrl, mimeType: f.mimeType }));
     const handle = streamPromptOptimize(
-      { apiKey, mode: 'gif', prompt: prompt.trim(), images },
+      { apiKey: textModel.apiKey, mode: 'gif', prompt: prompt.trim(), images },
       {
         onDelta(token) { setOptimizedText(prev => prev + token); },
         onDone() { setOptimizing(false); },
         onError(err) { setOptimizeError(err.message); setOptimizing(false); },
       },
+      textModel.baseUrl,
     );
     optimizeHandleRef.current = handle;
   }, [prompt, refFiles]);
@@ -144,9 +149,10 @@ export function GifGenerationWorkspace({ wideMode = false, hasApiKey, onConfigur
       if (cancelled) return;
 
       const saved = loadJsonFromStorage<PersistedSettings>(SETTINGS_KEY);
-      const savedModel = saved.model && (saved.model === 'gpt-image-2-plus' || saved.model === 'gpt-image-2-pro')
+      const defaultModel = getDefaultGifModelId();
+      const savedModel = saved.model && gifModelOptions.some((option) => option.value === saved.model)
         ? saved.model
-        : 'gpt-image-2-plus';
+        : defaultModel;
       setModel(savedModel);
       setGptImageAdvancedParams(getGptImageAdvancedParamsForModel(savedModel, {
         quality: saved.gptImageQuality,
@@ -174,7 +180,7 @@ export function GifGenerationWorkspace({ wideMode = false, hasApiKey, onConfigur
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [gifModelOptions]);
 
   useEffect(() => {
     if (!settingsReady) return;
@@ -403,7 +409,7 @@ export function GifGenerationWorkspace({ wideMode = false, hasApiKey, onConfigur
     }
   }, [workflow]);
 
-  const canSubmit = prompt.trim().length > 0 && !generating && hasApiKey;
+  const canSubmit = prompt.trim().length > 0 && !generating && hasApiKey && gifModelOptions.length > 0;
   const refImageCount = refFiles.length;
   const maxedOut = refImageCount >= GIF_MAX_REF_IMAGES;
 
@@ -439,6 +445,7 @@ export function GifGenerationWorkspace({ wideMode = false, hasApiKey, onConfigur
           prompt={prompt}
           onPromptChange={setPrompt}
           model={model}
+          modelOptions={gifModelOptions}
           modelPopoverOpen={modelPopoverOpen}
           onModelPopoverOpenChange={setModelPopoverOpen}
           onModelChange={handleModelChange}
@@ -504,7 +511,8 @@ export function GifGenerationWorkspace({ wideMode = false, hasApiKey, onConfigur
 
       <p className="text-xs text-muted-foreground leading-relaxed">
         系统会自动把生成网格图并切片为GIF，搭配你填写的主题与可选的参考图，生成 3×4 = 12 帧的网格底图，再在本地切片合成 GIF。
-        网格图分辨率固定为 3264×2448（单帧 816×816 正方形），支持 GPT Image 2 Plus / Pro 两个模型。
+        网格图分辨率固定为 3264×2448（单帧 816×816 正方形），仅显示支持 4K 自定义分辨率的 image 系列模型。
+        banana 系列不支持当前动图网格所需的自定义分辨率，因此这里不提供选择。
       </p>
 
       {previewOpen && workflow.gridImageUrl && createPortal(

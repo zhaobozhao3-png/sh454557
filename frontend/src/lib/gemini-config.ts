@@ -44,9 +44,6 @@ export function getModelOptions(): ModelOption[] {
 }
 
 export const MODEL_OPTIONS: ModelOption[] = [];
-export const TOKEN_SUFFIX = '-tokens';
-export const TOKEN_SUPPORTED_MODELS: string[] = [];
-export const TOKEN_MODEL_OPTIONS: ModelOption[] = [];
 
 function getBuiltinPresetId(modelId: string): BuiltinImagePresetId | undefined {
   const registryModel = getRegistryImageModels().find((item) => item.id === modelId);
@@ -76,11 +73,11 @@ export function supportsTokenMode(_modelId: string): boolean {
 }
 
 export function stripTokenSuffix(modelId: string): string {
-  return modelId.endsWith(TOKEN_SUFFIX) ? modelId.slice(0, -TOKEN_SUFFIX.length) : modelId;
+  return modelId;
 }
 
 export function isTokenModel(modelId: string): boolean {
-  return modelId.endsWith(TOKEN_SUFFIX);
+  return false;
 }
 
 export function getTokenModelId(modelId: string): string {
@@ -88,7 +85,7 @@ export function getTokenModelId(modelId: string): string {
 }
 
 export function getBaseModelId(modelId: string): ModelId {
-  return stripTokenSuffix(modelId);
+  return modelId;
 }
 
 export function getDefaultModelId(): string {

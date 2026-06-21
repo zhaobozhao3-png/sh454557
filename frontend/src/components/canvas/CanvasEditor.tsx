@@ -36,7 +36,7 @@ import { CanvasNodeType, type CanvasConnection, type CanvasGenerationConfig, typ
 import type { ReferenceImage } from "./types-media";
 import { PromptOptimizeDialog } from "@/components/PromptOptimizeDialog";
 import { streamPromptOptimize, type StreamPromptOptimizeHandle, type OptimizeImageInput } from "@/lib/prompt-optimize-client";
-import { getApiKeyFromStorage } from "@/lib/settings-storage";
+import { requireDefaultConfiguredTextModel } from "@/lib/model-endpoints";
 import { MODEL_IMAGE_LIMITS } from "@/lib/gemini-config";
 import { normalizeModel } from "@/lib/model-capabilities";
 import type { PromptWithKey } from "@/lib/prompt-gallery-data";
@@ -106,14 +106,14 @@ async function importPromptGalleryImage(url: string, promptContent: string) {
 
 async function optimizeImportedPromptContent(prompt: PromptWithKey, referenceImageCount: number): Promise<{ content: string; optimized: boolean }> {
   const original = prompt.content.trim();
-  const apiKey = getApiKeyFromStorage();
-  if (!apiKey || !original) return { content: original, optimized: false };
+  const textModel = requireDefaultConfiguredTextModel("promptOptimize");
+  if (!original) return { content: original, optimized: false };
 
   let output = "";
   let failed = false;
   const handle = streamPromptOptimize(
     {
-      apiKey,
+      apiKey: textModel.apiKey,
       mode: "canvas-prompt-gallery-import",
       prompt: original,
       context: `当前模板包含 ${referenceImageCount} 张参考图。画布会在生成配置里单独放置模板参考图，并用“目标角色图”单独指定用户上传的目标角色/OC图。`,
@@ -123,6 +123,7 @@ async function optimizeImportedPromptContent(prompt: PromptWithKey, referenceIma
       onDone(fullText) { if (fullText.trim()) output = fullText; },
       onError() { failed = true; },
     },
+    textModel.baseUrl,
   );
   await handle.promise;
 
@@ -1181,8 +1182,13 @@ export function CanvasEditor({ projectId, onBack, onRequireApiKey, showToast }: 
   // ---- 提示词优化：结合连接的上游图片（vision）/ 文字（context） ----
   const handleOptimizePrompt = useCallback(
     async (configNode: CanvasNodeData) => {
-      const apiKey = getApiKeyFromStorage();
-      if (!apiKey) { onRequireApiKey(); return; }
+      let textModel;
+      try {
+        textModel = requireDefaultConfiguredTextModel("promptOptimize");
+      } catch {
+        onRequireApiKey();
+        return;
+      }
       const promptText = (configNode.metadata?.composerContent ?? configNode.metadata?.prompt ?? "").trim();
       if (!promptText) { showToast("请输入提示词", "info"); return; }
 
@@ -1233,12 +1239,13 @@ export function CanvasEditor({ projectId, onBack, onRequireApiKey, showToast }: 
         ].filter(Boolean).join("\n\n") || undefined;
 
         optimizeHandleRef.current = streamPromptOptimize(
-          { apiKey, mode, prompt: promptText, images, context },
+          { apiKey: textModel.apiKey, mode, prompt: promptText, images, context },
           {
             onDelta(token) { setOptimizedText((prev) => prev + token); },
             onDone() { setOptimizing(false); },
             onError(err) { setOptimizeError(err.message); setOptimizing(false); },
           },
+          textModel.baseUrl,
         );
       } catch (err) {
         setOptimizeError(err instanceof Error ? err.message : String(err));

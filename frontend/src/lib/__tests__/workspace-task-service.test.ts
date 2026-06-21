@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ackNovaTask, createNovaTask, type NovaTaskResponse } from '@/lib/ccode-task-client';
+import { ackNovaTask, createNovaTask, resolveImageTaskProvider, type NovaTaskResponse } from '@/lib/ccode-task-client';
 import { downloadAndStoreImages } from '@/lib/image-downloader';
 import type { StoredJob } from '@/lib/job-store';
 import {
@@ -7,14 +7,13 @@ import {
   submitTextToImage,
   type SubmitActions,
 } from '@/lib/workspace-task-service';
-import { getApiKeyFromStorage } from '@/lib/settings-storage';
-
 vi.mock('@/lib/ccode-task-client', async importOriginal => {
   const actual = await importOriginal<typeof import('@/lib/ccode-task-client')>();
   return {
     ...actual,
     ackNovaTask: vi.fn(),
     createNovaTask: vi.fn(),
+    resolveImageTaskProvider: vi.fn(),
   };
 });
 
@@ -26,18 +25,10 @@ vi.mock('@/lib/image-downloader', async importOriginal => {
   };
 });
 
-vi.mock('@/lib/settings-storage', async importOriginal => {
-  const actual = await importOriginal<typeof import('@/lib/settings-storage')>();
-  return {
-    ...actual,
-    getApiKeyFromStorage: vi.fn(),
-  };
-});
-
 const mockedAckNovaTask = vi.mocked(ackNovaTask);
 const mockedCreateNovaTask = vi.mocked(createNovaTask);
 const mockedDownloadAndStoreImages = vi.mocked(downloadAndStoreImages);
-const mockedGetApiKeyFromStorage = vi.mocked(getApiKeyFromStorage);
+const mockedResolveImageTaskProvider = vi.mocked(resolveImageTaskProvider);
 
 function makeJob(overrides: Partial<StoredJob> = {}): StoredJob {
   return {
@@ -90,8 +81,12 @@ beforeEach(() => {
   mockedCreateNovaTask.mockReset();
   mockedCreateNovaTask.mockResolvedValue('task-advanced-1');
   mockedDownloadAndStoreImages.mockReset();
-  mockedGetApiKeyFromStorage.mockReset();
-  mockedGetApiKeyFromStorage.mockReturnValue('test-api-key');
+  mockedResolveImageTaskProvider.mockReset();
+  mockedResolveImageTaskProvider.mockReturnValue({
+    apiKey: 'test-api-key',
+    baseUrl: 'https://api.openai.com',
+    protocol: 'openai',
+  });
 });
 
 describe('submitTextToImage', () => {
@@ -104,7 +99,7 @@ describe('submitTextToImage', () => {
       outputSize: '1K',
       aspectRatio: '1:1',
       temperature: 1,
-      model: 'gpt-image-2-fast',
+      model: 'gpt-image-2',
       gptImageQuality: 'high',
       gptImageStyle: 'vivid',
       gptImageBackground: 'transparent',
@@ -114,7 +109,7 @@ describe('submitTextToImage', () => {
     expect(mockedCreateNovaTask).toHaveBeenCalledWith(expect.objectContaining({
       apiKey: 'test-api-key',
       mode: 'text-to-image',
-      model: 'gpt-image-2-fast',
+      model: 'gpt-image-2',
       gptImageQuality: 'high',
       gptImageStyle: 'vivid',
       gptImageBackground: 'transparent',

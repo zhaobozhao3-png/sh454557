@@ -1,7 +1,9 @@
+import { isGptImageModel } from '@/lib/gemini-config';
 import type { RefImageData } from '@/lib/job-store';
-import type { GptImageBackground, GptImageQuality, GptImageStyle } from '@/lib/model-capabilities';
+import { supportsCustomSize, type GptImageBackground, type GptImageQuality, type GptImageStyle } from '@/lib/model-capabilities';
+import { getDefaultImageModel, getCompleteImageModels, loadRegistry } from '@/lib/nova-models';
 
-export type GifModel = 'gpt-image-2-plus' | 'gpt-image-2-pro';
+export type GifModel = string;
 
 export type GifStatus =
   | 'idle'
@@ -34,11 +36,6 @@ export interface ActiveGifJob {
 
 const STORAGE_KEY = 'nova-gif-active-job';
 const TEMPLATE_URL = '/togif.png';
-
-export const GIF_MODEL_OPTIONS: { value: GifModel; label: string }[] = [
-  { value: 'gpt-image-2-plus', label: 'GPT Image 2 Plus' },
-  { value: 'gpt-image-2-pro', label: 'GPT Image 2 Pro' },
-];
 
 export const GIF_MAX_REF_IMAGES = 6;
 export const GIF_DEFAULT_FRAME_DELAY_MS = 120;
@@ -122,4 +119,21 @@ export function isActiveStatus(status: GifStatus): boolean {
 export function needsOverwriteConfirm(job: ActiveGifJob | null): boolean {
   if (!job) return false;
   return job.status !== 'idle';
+}
+
+export function getGifCompatibleModels(): { value: GifModel; label: string }[] {
+  const registry = loadRegistry();
+  return getCompleteImageModels(registry)
+    .filter((model) => isGptImageModel(model.id) && supportsCustomSize(model.id) && model.maxOutputSize === '4K')
+    .map((model) => ({ value: model.id, label: model.name }));
+}
+
+export function getDefaultGifModelId(): GifModel {
+  const registry = loadRegistry();
+  const options = getGifCompatibleModels();
+  const preferred = getDefaultImageModel(registry, 'textToImage');
+  if (preferred && options.some((option) => option.value === preferred.id)) {
+    return preferred.id;
+  }
+  return options[0]?.value || '';
 }

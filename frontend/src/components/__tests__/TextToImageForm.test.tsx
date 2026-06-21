@@ -1,5 +1,5 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { TextToImageForm } from '../TextToImageForm'
 
 describe('TextToImageForm', () => {
@@ -54,28 +54,19 @@ describe('TextToImageForm', () => {
     }))
   })
 
-  it('shows image params control for fast/plus models and hides it for other GPT Image models', async () => {
+  it('shows image params control for GPT Image 2 model', async () => {
     const onSubmit = vi.fn()
-    const { unmount } = render(
-      <TextToImageForm onSubmit={onSubmit} initialData={{ model: 'gpt-image-2-fast' }} />
-    )
+    render(<TextToImageForm onSubmit={onSubmit} initialData={{ model: 'gpt-image-2' }} />)
 
     expect(await screen.findByTitle('图像参数')).toBeInTheDocument()
-
-    unmount()
-    render(<TextToImageForm onSubmit={onSubmit} initialData={{ model: 'gpt-image-2-pro' }} />)
-
-    await waitFor(() => {
-      expect(screen.queryByTitle('图像参数')).not.toBeInTheDocument()
-    })
   })
 
-  it('submits default image params for fast model when left on auto', async () => {
+  it('submits default image params for GPT Image 2 model when left on auto', async () => {
     const onSubmit = vi.fn()
     render(
       <TextToImageForm
         onSubmit={onSubmit}
-        initialData={{ model: 'gpt-image-2-fast', prompt: 'Cut out the subject' }}
+        initialData={{ model: 'gpt-image-2', prompt: 'Cut out the subject' }}
       />
     )
 
@@ -84,7 +75,7 @@ describe('TextToImageForm', () => {
     fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: true })
 
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
-      model: 'gpt-image-2-fast',
+      model: 'gpt-image-2',
       gptImageQuality: 'auto',
       gptImageStyle: 'auto',
       gptImageBackground: 'auto',

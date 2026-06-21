@@ -7,7 +7,6 @@ import type { CanvasGenerationConfig } from "../canvas-generation-service";
 
 export const defaultCanvasConfig: CanvasGenerationConfig = {
   model: "gemini-3-pro-image-preview",
-  useTokenMode: false,
   outputSize: "1K",
   aspectRatio: "1:1",
   customSize: undefined,

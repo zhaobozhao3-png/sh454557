@@ -16,7 +16,8 @@ import { ConfirmDialog } from '@/components/workspace/dialogs/ConfirmDialog';
 import { addTextAsset, type TextAsset } from '@/lib/asset-store';
 import { dispatchImageActionToast } from '@/lib/image-actions';
 import { streamPromptOptimize, type StreamPromptOptimizeHandle } from '@/lib/prompt-optimize-client';
-import { getApiKeyFromStorage, loadJsonFromStorage, saveJsonToStorage } from '@/lib/settings-storage';
+import { loadJsonFromStorage, saveJsonToStorage } from '@/lib/settings-storage';
+import { requireDefaultConfiguredTextModel } from '@/lib/model-endpoints';
 import { type ModelId } from '@/lib/gemini-config';
 import {
   getAspectRatioOptions,
@@ -95,8 +96,8 @@ export function TextToImageForm({ onSubmit, disabled = false, onDraftConsumed, o
   const optimizeHandleRef = useRef<StreamPromptOptimizeHandle | null>(null);
 
   const handleOptimize = useCallback(() => {
-    const apiKey = getApiKeyFromStorage();
-    if (!apiKey || !prompt.trim()) return;
+    const textModel = requireDefaultConfiguredTextModel('promptOptimize');
+    if (!prompt.trim()) return;
 
     // 清理上一次请求
     optimizeHandleRef.current?.abort();
@@ -106,7 +107,7 @@ export function TextToImageForm({ onSubmit, disabled = false, onDraftConsumed, o
     setOptimizeOpen(true);
 
     const handle = streamPromptOptimize(
-      { apiKey, mode: 'text-to-image', prompt: prompt.trim() },
+      { apiKey: textModel.apiKey, mode: 'text-to-image', prompt: prompt.trim() },
       {
         onDelta(token) {
           setOptimizedText(prev => prev + token);
@@ -119,6 +120,7 @@ export function TextToImageForm({ onSubmit, disabled = false, onDraftConsumed, o
           setOptimizing(false);
         },
       },
+      textModel.baseUrl,
     );
     optimizeHandleRef.current = handle;
   }, [prompt]);

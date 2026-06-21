@@ -49,7 +49,8 @@ import {
 } from '@/lib/asset-store';
 import { generateAssetMetadata, type AssetMetadataSuggestion } from '@/lib/asset-metadata-client';
 import { dispatchImageActionToast, runImageAction, type ImageActionPayload } from '@/lib/image-actions';
-import { getApiKeyFromStorage, loadJsonFromStorage, saveJsonToStorage } from '@/lib/settings-storage';
+import { loadJsonFromStorage, saveJsonToStorage } from '@/lib/settings-storage';
+import { requireDefaultConfiguredTextModel } from '@/lib/model-endpoints';
 import { prepareUploadImage } from '@/lib/upload-image-cache';
 import { cn } from '@/lib/utils';
 
@@ -568,9 +569,11 @@ export function AssetsWorkspace({ wideMode = false, active = true }: AssetsWorks
 
   const generateEditMetadata = useCallback(async () => {
     if (!editingAsset || metadataGenerating) return;
-    const apiKey = getApiKeyFromStorage();
-    if (!apiKey) {
-      dispatchImageActionToast('请先在设置中配置 Nova API 密钥', 'error');
+    let textModel;
+    try {
+      textModel = requireDefaultConfiguredTextModel('imageDescribe');
+    } catch {
+      dispatchImageActionToast('请先在设置中完成图片描述默认文本模型配置', 'error');
       return;
     }
     setMetadataGenerating(true);
@@ -580,7 +583,9 @@ export function AssetsWorkspace({ wideMode = false, active = true }: AssetsWorks
       if (!blob) throw new Error('无法读取素材图片');
       const imageDataUrl = await prepareAssetMetadataImage(editingAsset, blob);
       const suggestion = await generateAssetMetadata({
-        apiKey,
+        apiKey: textModel.apiKey,
+        baseUrl: textModel.baseUrl,
+        model: textModel.modelId,
         imageDataUrl,
         currentName: editName,
         currentTags: splitTags(editTags),

@@ -15,7 +15,6 @@ import {
   type ParallelCount,
 } from '@/lib/model-capabilities';
 import { generateUUID } from '@/lib/uuid';
-import { stripTokenSuffix } from '@/lib/gemini-config';
 import { downloadAndStoreImages, type DownloadResult, type ImageDownloadProgressItem } from '@/lib/image-downloader';
 
 export interface TextToImageSubmitInput {
@@ -24,7 +23,6 @@ export interface TextToImageSubmitInput {
   customSize?: string;
   aspectRatio: AspectRatio;
   temperature: number;
-  /** ModelId 或 ModelId-tokens（Token 变体） */
   model: string;
   gptImageQuality: GptImageQuality;
   gptImageStyle: GptImageStyle;
@@ -39,7 +37,6 @@ export interface ImageToImageSubmitInput {
   customSize?: string;
   aspectRatio: AspectRatio;
   temperature: number;
-  /** ModelId 或 ModelId-tokens（Token 变体） */
   model: string;
   gptImageQuality: GptImageQuality;
   gptImageStyle: GptImageStyle;
@@ -115,8 +112,7 @@ function createBaseJob(
   parallelCount: ParallelCount,
   refImages?: StoredJob['refImages']
 ): StoredJob {
-  const baseModel = stripTokenSuffix(model) as ModelId;
-  const advancedParams = getGptImageAdvancedParamsForModel(baseModel, {
+  const advancedParams = getGptImageAdvancedParamsForModel(model as ModelId, {
     quality: gptImageQuality,
     style: gptImageStyle,
     background: gptImageBackground,
