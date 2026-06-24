@@ -404,6 +404,7 @@ export function WorkspaceShell() {
                   onConfigureApiKey={() => setSettingsOpen(true)}
                   onEnableWideMode={() => { if (!wideMode) toggleWideMode(); }}
                   showToast={showToast}
+                  showPromptGallery={promptGallery.showPromptGallery}
                 />
               </TabsContent>
 

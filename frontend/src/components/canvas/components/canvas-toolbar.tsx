@@ -14,6 +14,7 @@ type CanvasToolbarProps = {
   canRedo: boolean;
   backgroundMode: CanvasBackgroundMode;
   showImageInfo: boolean;
+  showPromptGallery?: boolean;
   onAddImage: () => void;
   onAddText: () => void;
   onAddConfig: () => void;
@@ -31,6 +32,7 @@ export function CanvasToolbar({
   canRedo,
   backgroundMode,
   showImageInfo,
+  showPromptGallery = true,
   onAddImage,
   onAddText,
   onAddConfig,
@@ -62,11 +64,13 @@ export function CanvasToolbar({
           <Settings2 className="size-4" />
         </Button>
       </CanvasTooltip>
-      <CanvasTooltip label="从提示词广场导入">
-        <Button variant="ghost" size="icon-sm" onClick={onImportPromptGallery} aria-label="从提示词广场导入">
-          <LibraryBig className="size-4" />
-        </Button>
-      </CanvasTooltip>
+      {showPromptGallery && (
+        <CanvasTooltip label="从提示词广场导入">
+          <Button variant="ghost" size="icon-sm" onClick={onImportPromptGallery} aria-label="从提示词广场导入">
+            <LibraryBig className="size-4" />
+          </Button>
+        </CanvasTooltip>
+      )}
 
       <div className="mx-1 h-5 w-px bg-border" />
 

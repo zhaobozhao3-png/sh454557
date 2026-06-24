@@ -18,6 +18,7 @@ type CanvasWorkspaceProps = {
   onConfigureApiKey: () => void;
   onEnableWideMode: () => void;
   showToast: (message: string, type: "success" | "error" | "info") => void;
+  showPromptGallery?: boolean;
 };
 
 type SortMode = "updated" | "created" | "name";
@@ -28,7 +29,7 @@ const SORT_OPTIONS: { value: SortMode; label: string }[] = [
   { value: "name", label: "名称" },
 ];
 
-export function CanvasWorkspace({ wideMode, onConfigureApiKey, onEnableWideMode, showToast }: CanvasWorkspaceProps) {
+export function CanvasWorkspace({ wideMode, onConfigureApiKey, onEnableWideMode, showToast, showPromptGallery }: CanvasWorkspaceProps) {
   const hydrated = useCanvasStore((state) => state.hydrated);
   const projects = useCanvasStore((state) => state.projects);
   const createProject = useCanvasStore((state) => state.createProject);
@@ -77,7 +78,7 @@ export function CanvasWorkspace({ wideMode, onConfigureApiKey, onEnableWideMode,
   if (activeProjectId) {
     return (
       <div className="relative h-full min-h-[70vh] w-full overflow-hidden rounded-2xl border border-border bg-card">
-        <CanvasEditor projectId={activeProjectId} onBack={() => setActiveProjectId(null)} onRequireApiKey={onConfigureApiKey} showToast={showToast} />
+        <CanvasEditor projectId={activeProjectId} onBack={() => setActiveProjectId(null)} onRequireApiKey={onConfigureApiKey} showToast={showToast} showPromptGallery={showPromptGallery} />
       </div>
     );
   }

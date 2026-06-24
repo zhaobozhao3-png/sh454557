@@ -50,6 +50,7 @@ type CanvasEditorProps = {
   onBack: () => void;
   onRequireApiKey: () => void;
   showToast: (message: string, type: "success" | "error" | "info") => void;
+  showPromptGallery?: boolean;
 };
 
 const MAX_HISTORY = 50;
@@ -131,7 +132,7 @@ async function optimizeImportedPromptContent(prompt: PromptWithKey, referenceIma
   return failed || !content ? { content: original, optimized: false } : { content, optimized: true };
 }
 
-export function CanvasEditor({ projectId, onBack, onRequireApiKey, showToast }: CanvasEditorProps) {
+export function CanvasEditor({ projectId, onBack, onRequireApiKey, showToast, showPromptGallery = true }: CanvasEditorProps) {
   const theme = canvasTheme;
   const openProject = useCanvasStore((state) => state.openProject);
   const updateProject = useCanvasStore((state) => state.updateProject);
@@ -1461,6 +1462,7 @@ export function CanvasEditor({ projectId, onBack, onRequireApiKey, showToast }: 
         canRedo={redoStack.length > 0}
         backgroundMode={backgroundMode}
         showImageInfo={showImageInfo}
+        showPromptGallery={showPromptGallery}
         onAddImage={() => addNode(CanvasNodeType.Image)}
         onAddText={() => addNode(CanvasNodeType.Text)}
         onAddConfig={() => addNode(CanvasNodeType.Config)}
