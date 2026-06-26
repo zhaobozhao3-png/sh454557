@@ -33,7 +33,7 @@ backend/ccode-images/
 .cursor/
 .codebuddy/
 .trae/
-
+data/
 # debug
 npm-debug.log*
 yarn-debug.log*

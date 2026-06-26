@@ -1,7 +1,7 @@
 services:
   nova-image-studio:
     build: .
-    image: nova-image-studio:latest
+    image: tianjiangqiji/nova-image-studio:latest
     container_name: nova-image-studio
     ports:
       - "3000:3000"

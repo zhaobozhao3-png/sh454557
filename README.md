@@ -306,17 +306,14 @@ npm run go             # 打包：build + 汇总到根 out.zip
 
 ```bash
 docker build -t nova-image-studio:latest .
-docker build -t nova-image-studio:3.1.1 .
 ```
 
 ### 推送到仓库
 
 ```bash
 docker tag nova-image-studio:latest tianjiangqiji/nova-image-studio:latest
-docker tag nova-image-studio:3.1.1 tianjiangqiji/nova-image-studio:3.1.1
 
 docker push tianjiangqiji/nova-image-studio:latest
-docker push tianjiangqiji/nova-image-studio:3.1.1
 ```
 
 </details>
