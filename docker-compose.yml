@@ -8,7 +8,7 @@ services:
     volumes:
       - ./data/images:/app/backend/nova-images
       - ./data/nova-tasks.sqlite:/app/backend/nova-tasks.sqlite
-      - ./backend/blacklist.json:/app/backend/blacklist.json
-      - ./backend/prompts.json:/app/backend/prompts.json
-      - ./backend/.env:/app/backend/.env
+      - blacklist.json:/app/backend/blacklist.json
+      - prompts.json:/app/backend/prompts.json
+      - .env:/app/backend/.env
     restart: unless-stopped
