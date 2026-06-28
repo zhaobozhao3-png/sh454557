@@ -168,12 +168,18 @@ nova-image-studio/
 ### 快速启动
 
 ```bash
-# 1. 复制环境变量文件
+# 1. 复制环境变量文件（如果不是从clone下来的，则自己新建并复制过来即可）
 cp backend/.env.example backend/.env
 
-# 2. 编辑 backend/.env 按需调整配置
+# 2. 编辑 .env 按需调整配置
 
-# 3. 启动服务
+# 3. 创建必要的配置文件（如果不存在）
+touch blacklist.json prompts.json
+
+# 4. 创建数据目录
+mkdir -p data/images
+
+# 5. 启动服务
 docker compose up -d
 ```
 
