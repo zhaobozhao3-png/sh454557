@@ -364,7 +364,12 @@ export function SettingsModal({ isOpen, onClose, onApiKeyChange }: SettingsModal
 
   const completeImageOptions = imageModels.filter(isCompleteImageModel).map((model) => ({ value: model.id, label: model.name }));
   const completeTextOptions = textModels.filter(isCompleteTextModel).map((model) => ({ value: model.id, label: model.name }));
-  const selectedImageOutputSizes = selectedImageModel ? getImageModelOutputSizes(selectedImageModel) : ['1K'];
+  const selectedImageOutputSizes = selectedImageModel
+    ? getImageModelOutputSizes({
+        ...selectedImageModel,
+        maxOutputSize: BUILTIN_IMAGE_PRESETS[selectedImageModel.builtinPreset].maxOutputSize,
+      })
+    : ['1K'];
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => {
