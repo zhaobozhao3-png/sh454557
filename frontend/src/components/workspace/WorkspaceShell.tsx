@@ -1,15 +1,10 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { ImageGenerationWorkbench } from '@/components/ImageGenerationWorkbench';
-import { ReversePromptForm } from '@/components/ReversePromptForm';
-import { GifGenerationWorkspace } from '@/components/GifGenerationWorkspace';
-import { AgentChatWorkspace } from '@/components/agent/AgentChatWorkspace';
-import { AssetsWorkspace } from '@/components/assets/AssetsWorkspace';
-import { CanvasWorkspace } from '@/components/canvas/CanvasWorkspace';
-import { PromptGallery } from '@/components/PromptGallery';
 import { SettingsModal } from '@/components/SettingsModal';
 import { MissingApiKeyDialog } from '@/components/MissingApiKeyDialog';
 import { useQueueStatus } from '@/hooks/useQueueStatus';
@@ -44,6 +39,43 @@ import {
 } from '@/lib/workspace-task-service';
 import { cn } from '@/lib/utils';
 import { BA_RANDOM_URL, BING_WALLPAPER_URL } from '@/lib/constants';
+import { assetPath } from '@/lib/app-paths';
+import { syncBoio7ModelRegistry } from '@/lib/boio7-keys';
+
+type WorkspaceTab = 'image-generation' | 'agent' | 'canvas' | 'assets' | 'reverse-prompt' | 'gif' | 'prompt-gallery';
+
+function LazyTabLoading() {
+  return (
+    <div className="flex min-h-64 items-center justify-center rounded-xl border border-dashed border-border bg-card/50 text-sm text-muted-foreground">
+      加载中...
+    </div>
+  );
+}
+
+const AgentChatWorkspace = dynamic(
+  () => import('@/components/agent/AgentChatWorkspace').then(mod => mod.AgentChatWorkspace),
+  { ssr: false, loading: LazyTabLoading },
+);
+const CanvasWorkspace = dynamic(
+  () => import('@/components/canvas/CanvasWorkspace').then(mod => mod.CanvasWorkspace),
+  { ssr: false, loading: LazyTabLoading },
+);
+const AssetsWorkspace = dynamic(
+  () => import('@/components/assets/AssetsWorkspace').then(mod => mod.AssetsWorkspace),
+  { ssr: false, loading: LazyTabLoading },
+);
+const ReversePromptForm = dynamic(
+  () => import('@/components/ReversePromptForm').then(mod => mod.ReversePromptForm),
+  { ssr: false, loading: LazyTabLoading },
+);
+const GifGenerationWorkspace = dynamic(
+  () => import('@/components/GifGenerationWorkspace').then(mod => mod.GifGenerationWorkspace),
+  { ssr: false, loading: LazyTabLoading },
+);
+const PromptGallery = dynamic(
+  () => import('@/components/PromptGallery').then(mod => mod.PromptGallery),
+  { ssr: false, loading: LazyTabLoading },
+);
 
 export function WorkspaceShell() {
   const queueStatus = useQueueStatus();
@@ -51,7 +83,9 @@ export function WorkspaceShell() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [missingApiKeyDialogOpen, setMissingApiKeyDialogOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'image-generation' | 'agent' | 'canvas' | 'assets' | 'reverse-prompt' | 'gif' | 'prompt-gallery'>('agent');
+  const [activeTab, setActiveTab] = useState<WorkspaceTab>('image-generation');
+  const [mountedTabs, setMountedTabs] = useState<Set<WorkspaceTab>>(() => new Set(['image-generation']));
+  const [embeddedMode, setEmbeddedMode] = useState(false);
   const [generationHistoryFilter, setGenerationHistoryFilter] = useState<GenerationHistoryFilter>('all');
   const [generationClearScope, setGenerationClearScope] = useState<HistoryClearScope | null>(null);
   const [referenceDraft, setReferenceDraft] = useState<{ id: number; refImages: RefImageData[] } | null>(null);
@@ -65,6 +99,31 @@ export function WorkspaceShell() {
   const headerRef = useRef<WorkspaceHeaderRef>(null);
   const referenceDraftIdRef = useRef(0);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const nextEmbeddedMode = params.get('ui_mode') === 'embedded' || window.self !== window.top;
+    setEmbeddedMode(nextEmbeddedMode);
+    if (nextEmbeddedMode) {
+      setActiveTab('image-generation');
+      document.documentElement.setAttribute('data-nova-embedded', '');
+    }
+    return () => {
+      document.documentElement.removeAttribute('data-nova-embedded');
+    };
+  }, []);
+
+  useEffect(() => {
+    setMountedTabs(prev => {
+      if (prev.has(activeTab)) return prev;
+      const next = new Set(prev);
+      next.add(activeTab);
+      return next;
+    });
+  }, [activeTab]);
+
+  const shouldRenderTab = useCallback((tab: WorkspaceTab) => activeTab === tab || mountedTabs.has(tab), [activeTab, mountedTabs]);
+
   const showToast = useCallback((message: string, type: ToastData['type']) => {
     const id = `toast-${++toastIdRef.current}`;
     setToasts(prev => [...prev, { id, message, type }]);
@@ -72,6 +131,20 @@ export function WorkspaceShell() {
   const dismissToast = useCallback((id: string) => {
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void syncBoio7ModelRegistry().then((result) => {
+      if (cancelled) return;
+      workspace.setHasApiKey(result.ok);
+      if (!result.ok && result.error) {
+        showToast(result.error, 'error');
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [showToast, workspace.setHasApiKey]);
 
   useEffect(() => subscribeImageActionToasts(detail => showToast(detail.message, detail.type)), [showToast]);
 
@@ -189,6 +262,8 @@ export function WorkspaceShell() {
         ? '图生图'
         : '当前模式';
 
+  const spaciousMode = wideMode || embeddedMode;
+
   const handleConfirmClearGeneration = useCallback(() => {
     if (!generationClearScope) return;
     const scope = generationClearScope;
@@ -209,22 +284,29 @@ export function WorkspaceShell() {
     <div
       className={cn(
         'mx-auto flex min-h-screen w-full flex-col gap-4 overflow-x-hidden px-3 py-3 transition-[max-width] duration-200 sm:gap-5 sm:px-6 sm:py-5 lg:px-8',
-        wideMode ? 'max-w-none xl:h-dvh xl:min-h-0 xl:gap-3 xl:py-3 xl:overflow-hidden' : 'max-w-5xl',
+        embeddedMode
+          ? 'max-w-none gap-3 px-2 py-2 sm:px-3 sm:py-3 lg:px-4'
+          : wideMode
+            ? 'max-w-none xl:h-dvh xl:min-h-0 xl:gap-3 xl:py-3 xl:overflow-hidden'
+            : 'max-w-5xl',
         !wideMode && activeTab === 'agent' && 'h-dvh min-h-0 overflow-hidden'
       )}
     >
       <div className={cn(
         'flex-1 bg-transparent shadow-none sm:rounded-3xl sm:bg-card/95 sm:shadow-sm sm:border sm:border-border/70',
+        embeddedMode && 'sm:rounded-2xl sm:bg-card/90',
         wideMode && 'flex min-h-0 flex-col',
         !wideMode && activeTab === 'agent' && 'flex min-h-0 flex-col'
       )}>
         <div className={cn(
           'p-0 sm:p-5',
-          wideMode
-            ? 'flex h-full flex-1 flex-col min-h-0 sm:p-3'
-            : activeTab === 'agent'
-              ? 'flex h-full flex-1 flex-col min-h-0 gap-4'
-              : 'space-y-4'
+          embeddedMode
+            ? 'space-y-3 sm:p-3'
+            : wideMode
+              ? 'flex h-full flex-1 flex-col min-h-0 sm:p-3'
+              : activeTab === 'agent'
+                ? 'flex h-full flex-1 flex-col min-h-0 gap-4'
+                : 'space-y-4'
         )}>
           <WorkspaceHeader
             ref={headerRef}
@@ -238,14 +320,16 @@ export function WorkspaceShell() {
 
           <Tabs
             value={activeTab}
-            onValueChange={value => setActiveTab(value as typeof activeTab)}
+            onValueChange={value => setActiveTab(value as WorkspaceTab)}
             orientation={wideMode ? 'vertical' : 'horizontal'}
             className={cn(
               wideMode
                 ? 'gap-4 xl:flex-row xl:flex-1 xl:min-h-0'
                 : activeTab === 'agent'
                   ? 'gap-2 flex flex-col flex-1 min-h-0'
-                  : 'gap-2'
+                  : embeddedMode
+                    ? 'gap-3'
+                    : 'gap-2'
             )}
           >
             <div className={cn('flex flex-col', wideMode && 'self-stretch sticky top-4 h-full xl:shrink-0')}>
@@ -254,21 +338,21 @@ export function WorkspaceShell() {
                   type="button"
                   onClick={promptGallery.handlePromptGalleryEntry}
                   className="flex items-center gap-2 px-2 pt-3 pb-1 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  aria-label="Nova Image logo"
+                  aria-label="BOIO7 logo"
                 >
                   <img
-                    src="/favicon.png"
-                    alt="Nova Image"
+                    src={assetPath('/boio7-logo.png')}
+                    alt="BOIO7 logo"
                     className="h-8 w-8 shrink-0 rounded-lg object-cover ring-1 ring-border/60"
                   />
                   <div className="min-w-0">
-                    <h2 className="truncate text-base font-semibold tracking-tight leading-tight">Nova Image</h2>
-                    <p className="truncate text-[11px] text-muted-foreground leading-tight">批量 API 图像生成器</p>
+                    <h2 className="truncate text-base font-semibold tracking-tight leading-tight">BOIO7</h2>
+                    <p className="truncate text-[11px] text-muted-foreground leading-tight">BOIO7 AI 生图工具</p>
                   </div>
                 </button>
               )}
               <div className={cn(wideMode ? 'flex flex-col py-4 flex-1' : 'flex flex-col py-1')}>
-                <WorkspaceModeTabs wideMode={wideMode} showPromptGallery={promptGallery.showPromptGallery} />
+                <WorkspaceModeTabs wideMode={wideMode} />
               </div>
 
               {wideMode && (
@@ -346,11 +430,11 @@ export function WorkspaceShell() {
                 : 'xl:overflow-y-auto xl:overflow-x-hidden'),
               !wideMode && activeTab === 'agent' && 'flex flex-1 flex-col min-h-0'
             )}>
-              <TabsContent value="image-generation" keepMounted className={cn(wideMode ? 'space-y-6 xl:flex xl:min-h-0 xl:space-y-0' : 'space-y-3')}>
-                <div className={cn(wideMode ? 'grid items-start gap-5 xl:h-full xl:min-h-0 xl:flex-1 xl:grid-cols-[minmax(460px,0.95fr)_minmax(0,1.35fr)] xl:items-stretch' : 'space-y-3')}>
-                  <div className={cn(wideMode && 'xl:h-full xl:min-h-0 xl:overflow-y-auto xl:pr-1')}>
+              <TabsContent value="image-generation" keepMounted className={cn(spaciousMode ? 'space-y-6 lg:flex lg:min-h-0 lg:space-y-0' : 'space-y-3')}>
+                <div className={cn(spaciousMode ? 'grid items-start gap-5 lg:min-h-[560px] lg:flex-1 lg:grid-cols-[minmax(420px,0.95fr)_minmax(0,1.35fr)] lg:items-stretch xl:min-h-0' : 'space-y-3', wideMode && 'xl:h-full')}>
+                  <div className={cn(spaciousMode && 'lg:h-full lg:min-h-0 lg:overflow-y-auto lg:pr-1')}>
                     <ImageGenerationWorkbench
-                      wideMode={wideMode}
+                      wideMode={spaciousMode}
                       onSubmitText={data => void submitTextToImage(data, submitActions, handleSubmitError)}
                       onSubmitImage={data => void submitImageToImage(data, submitActions, handleSubmitError)}
                       disabled={!workspace.hasApiKey}
@@ -361,7 +445,7 @@ export function WorkspaceShell() {
                     />
                   </div>
                   <HistoryJobList
-                    wideMode={wideMode}
+                    wideMode={spaciousMode}
                     active={activeTab === 'image-generation'}
                     title="生图任务"
                     mode="text-to-image"
@@ -391,52 +475,57 @@ export function WorkspaceShell() {
                 keepMounted
                 className={cn('flex-1 flex flex-col min-h-0', wideMode && 'xl:flex xl:min-h-0 xl:flex-1 xl:flex-col')}
               >
-                <AgentChatWorkspace
-                  wideMode={wideMode}
-                  disabled={!workspace.hasApiKey}
-                  onConfigureApiKey={() => setSettingsOpen(true)}
-                />
+                {shouldRenderTab('agent') && (
+                  <AgentChatWorkspace
+                    wideMode={wideMode}
+                    disabled={!workspace.hasApiKey}
+                    onConfigureApiKey={() => setSettingsOpen(true)}
+                  />
+                )}
               </TabsContent>
 
               <TabsContent value="canvas" keepMounted className={cn('min-h-0', wideMode ? 'xl:flex xl:min-h-0 xl:flex-1 xl:flex-col' : 'space-y-6')}>
-                <CanvasWorkspace
-                  wideMode={wideMode}
-                  onConfigureApiKey={() => setSettingsOpen(true)}
-                  onEnableWideMode={() => { if (!wideMode) toggleWideMode(); }}
-                  showToast={showToast}
-                  showPromptGallery={promptGallery.showPromptGallery}
-                />
+                {shouldRenderTab('canvas') && (
+                  <CanvasWorkspace
+                    wideMode={wideMode}
+                    onConfigureApiKey={() => setSettingsOpen(true)}
+                    onEnableWideMode={() => { if (!wideMode) toggleWideMode(); }}
+                    showToast={showToast}
+                  />
+                )}
               </TabsContent>
 
               <TabsContent value="assets" keepMounted className={cn(wideMode ? 'space-y-6 xl:min-h-0 xl:min-w-0 xl:flex xl:flex-col' : 'space-y-6')}>
-                <AssetsWorkspace wideMode={wideMode} active={activeTab === 'assets'} />
+                {shouldRenderTab('assets') && <AssetsWorkspace wideMode={wideMode} active={activeTab === 'assets'} />}
               </TabsContent>
 
               <TabsContent value="reverse-prompt" keepMounted className={cn(wideMode ? 'space-y-6 xl:min-h-0 xl:flex xl:flex-col' : 'space-y-6')}>
-                <ReversePromptForm
-                  wideMode={wideMode}
-                  disabled={!workspace.hasApiKey}
-                  onConfigureApiKey={() => setSettingsOpen(true)}
-                />
+                {shouldRenderTab('reverse-prompt') && (
+                  <ReversePromptForm
+                    wideMode={wideMode}
+                    disabled={!workspace.hasApiKey}
+                    onConfigureApiKey={() => setSettingsOpen(true)}
+                  />
+                )}
               </TabsContent>
 
               <TabsContent value="gif" keepMounted className={cn(wideMode ? 'space-y-6 xl:min-h-0 xl:flex xl:flex-col' : 'space-y-6')}>
-                <GifGenerationWorkspace
-                  wideMode={wideMode}
-                  hasApiKey={workspace.hasApiKey}
-                  onConfigureApiKey={() => setSettingsOpen(true)}
-                  onError={message => showToast(message, 'error')}
-                  showToast={showToast}
-                />
+                {shouldRenderTab('gif') && (
+                  <GifGenerationWorkspace
+                    wideMode={wideMode}
+                    hasApiKey={workspace.hasApiKey}
+                    onConfigureApiKey={() => setSettingsOpen(true)}
+                    onError={message => showToast(message, 'error')}
+                    showToast={showToast}
+                  />
+                )}
               </TabsContent>
 
-              {promptGallery.showPromptGallery && (
-                <TabsContent value="prompt-gallery" keepMounted>
-                  <div className={cn('bg-transparent p-0 shadow-none sm:rounded-2xl sm:bg-card sm:p-4 sm:shadow-sm sm:border sm:border-border', wideMode && 'sm:p-5')}>
-                    <PromptGallery wideMode={wideMode} />
-                  </div>
-                </TabsContent>
-              )}
+              <TabsContent value="prompt-gallery" keepMounted>
+                <div className={cn('bg-transparent p-0 shadow-none sm:rounded-2xl sm:bg-card sm:p-4 sm:shadow-sm sm:border sm:border-border', wideMode && 'sm:p-5')}>
+                  {shouldRenderTab('prompt-gallery') && <PromptGallery wideMode={wideMode} />}
+                </div>
+              </TabsContent>
             </div>
           </Tabs>
         </div>

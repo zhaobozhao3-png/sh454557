@@ -6,11 +6,10 @@ import { TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface WorkspaceModeTabsProps {
   wideMode?: boolean;
-  showPromptGallery?: boolean;
 }
 
 const horizontalTriggerClass =
-  'group h-full min-h-0 min-w-0 gap-1 overflow-hidden whitespace-nowrap rounded-xl px-2 py-2 text-xs max-sm:w-14 max-sm:shrink-0 max-sm:flex-none max-sm:data-active:w-auto max-sm:data-active:min-w-[88px] sm:h-[calc(100%-1px)] sm:gap-2 sm:px-3 sm:py-2 sm:text-sm';
+  'group h-full min-h-0 min-w-0 gap-1 overflow-hidden whitespace-nowrap rounded-xl px-2 py-2 text-xs max-sm:w-12 max-sm:shrink-0 max-sm:flex-none max-sm:data-active:w-auto max-sm:data-active:min-w-[88px] sm:h-[calc(100%-1px)] sm:gap-2 sm:px-3 sm:py-2 sm:text-sm';
 
 const labelClass = 'max-sm:hidden max-sm:group-data-active:inline';
 
@@ -25,9 +24,8 @@ const tabs = [
 
 const galleryTab = { value: 'prompt-gallery', icon: LibraryBig, label: '提示词广场' } as const;
 
-export function WorkspaceModeTabs({ wideMode = false, showPromptGallery = false }: WorkspaceModeTabsProps) {
-  const gridCols = showPromptGallery ? 'sm:grid-cols-7' : 'sm:grid-cols-6';
-  const allTabs = showPromptGallery ? [...tabs, galleryTab] : tabs;
+export function WorkspaceModeTabs({ wideMode = false }: WorkspaceModeTabsProps) {
+  const allTabs = [...tabs, galleryTab];
   const dragStateRef = useRef({
     pointerId: -1,
     startX: 0,
@@ -56,7 +54,7 @@ export function WorkspaceModeTabs({ wideMode = false, showPromptGallery = false 
   // 窄屏 → 水平标签栏
   return (
     <TabsList
-      className={`scrollbar-hide flex h-16 w-full max-w-full touch-pan-x select-none justify-start gap-1 overflow-x-auto overflow-y-hidden overscroll-x-contain rounded-2xl bg-muted p-1 sm:grid ${gridCols} sm:overflow-visible sm:border sm:border-border sm:select-auto`}
+      className="scrollbar-hide flex h-16 w-full max-w-full touch-pan-x select-none justify-start gap-1 overflow-x-auto overflow-y-hidden overscroll-x-contain rounded-2xl bg-muted p-1 sm:grid sm:grid-cols-7 sm:overflow-visible sm:border sm:border-border sm:select-auto"
       onPointerDown={event => {
         const el = event.currentTarget;
         if (!el || (event.pointerType === 'mouse' && event.button !== 0) || el.scrollWidth <= el.clientWidth) return;

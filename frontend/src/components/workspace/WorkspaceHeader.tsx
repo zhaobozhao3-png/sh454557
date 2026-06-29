@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { runImageAction, type ImageActionPayload } from '@/lib/image-actions';
+import { assetPath } from '@/lib/app-paths';
 
 import { BA_RANDOM_URL, BING_WALLPAPER_URL } from '@/lib/constants';
 
@@ -133,17 +134,17 @@ export const WorkspaceHeader = forwardRef<WorkspaceHeaderRef, WorkspaceHeaderPro
             type="button"
             onClick={onLogoClick}
             className="rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:rounded-xl"
-            aria-label="Nova Image logo"
+            aria-label="BOIO7 logo"
           >
             <img
-              src="/favicon.png"
-              alt="Nova Image logo"
+              src={assetPath('/boio7-logo.png')}
+              alt="BOIO7 logo"
               className="h-8 w-8 flex-shrink-0 rounded-lg object-cover ring-1 ring-border/60 sm:h-11 sm:w-11 sm:rounded-xl"
             />
           </button>
           <div className="hidden min-w-0 space-y-1 sm:block">
-            <h1 className="truncate text-2xl font-semibold tracking-tight">Nova Image</h1>
-            <p className="text-sm text-muted-foreground">批量 API 图像生成器</p>
+            <h1 className="truncate text-2xl font-semibold tracking-tight">BOIO7</h1>
+            <p className="text-sm text-muted-foreground">BOIO7 AI 生图工具</p>
           </div>
         </div>
 
