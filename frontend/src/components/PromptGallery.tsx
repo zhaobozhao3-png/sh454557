@@ -11,12 +11,13 @@ import {
   ALL_CATEGORY,
   DEFAULT_CATEGORIES,
   PROMPT_DATA_SOURCES,
-  fetchAllPromptSources,
+  fetchPreferredPromptSources,
   getPromptSourceLabel,
   type PromptWithKey,
 } from '@/lib/prompt-gallery-data';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { seededShuffle } from '@/lib/seeded-shuffle';
+import { apiPath } from '@/lib/app-paths';
 
 const PROMPT_GALLERY_STEP = 20;
 const PROMPT_GALLERY_WIDE_STEP = 30;
@@ -38,7 +39,7 @@ const PromptGallery = memo(function PromptGallery({ wideMode = false }: { wideMo
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetch('/api/nova/blacklist')
+    fetch(apiPath('/api/nova/blacklist'))
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data.keywords)) {
@@ -49,7 +50,7 @@ const PromptGallery = memo(function PromptGallery({ wideMode = false }: { wideMo
         setBlacklist([]);
       });
 
-    fetchAllPromptSources()
+    fetchPreferredPromptSources()
       .then((result) => {
         setCategories(result.categories);
         setAllPrompts(result.prompts);

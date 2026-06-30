@@ -29,8 +29,8 @@ function loadInitialJobs(): StoredJob[] {
 }
 
 export function useWorkspaceJobs() {
-  const [hasApiKey, setHasApiKey] = useState(() => hasAnyApiKey());
-  const [jobs, setJobs] = useState<StoredJob[]>(loadInitialJobs);
+  const [hasApiKey, setHasApiKey] = useState(false);
+  const [jobs, setJobs] = useState<StoredJob[]>([]);
   const jobsRef = useRef(jobs);
   useEffect(() => { jobsRef.current = jobs; }, [jobs]);
   const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
@@ -39,8 +39,10 @@ export function useWorkspaceJobs() {
   const [cancelJobId, setCancelJobId] = useState<string | null>(null);
 
   useEffect(() => {
+    setHasApiKey(hasAnyApiKey());
     const stored = loadInitialJobs();
     saveJobs(stored);
+    setJobs(stored);
 
     if (stored.length > 0) {
       openDB()

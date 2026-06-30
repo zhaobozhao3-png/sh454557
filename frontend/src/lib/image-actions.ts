@@ -5,6 +5,7 @@ import { getAgentImageBytes } from '@/lib/agent-context-store';
 import { getImageSrc, type RefImageData } from '@/lib/job-store';
 import { getStoredBlob } from '@/lib/image-downloader';
 import { getOptimizationBadge, prepareUploadImage } from '@/lib/upload-image-cache';
+import { resolveServerImageUrl } from '@/lib/app-paths';
 
 export interface ImageActionPayload {
   id?: string;
@@ -70,7 +71,8 @@ function stripImageRef(ref: string): string {
   if (ref.startsWith('URL:') || ref.startsWith('MULTI_URL:') || ref.startsWith('IDB:') || ref.startsWith('blob:')) {
     return getImageSrc(ref) || ref;
   }
-  if (ref.startsWith('data:') || /^https?:\/\//i.test(ref) || ref.startsWith('/')) return ref;
+  if (ref.startsWith('data:') || /^https?:\/\//i.test(ref)) return ref;
+  if (ref.startsWith('/')) return resolveServerImageUrl(ref);
   return `data:image/png;base64,${ref}`;
 }
 

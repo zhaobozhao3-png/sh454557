@@ -58,6 +58,7 @@ export interface NovaModelRegistry {
 }
 
 const REGISTRY_KEY = 'nova-model-registry';
+let clientRegistryStorageEnabled = false;
 
 export const BUILTIN_IMAGE_PRESETS: Record<BuiltinImagePresetId, BuiltinImagePreset> = {
   'gemini-2.5-flash-image': {
@@ -253,28 +254,63 @@ function ensureDefaults(raw: Partial<DefaultModels> | undefined, imageModels: Im
 }
 
 function getInitialRegistry(): NovaModelRegistry {
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
   return {
-    imageModels: [],
-    textModels: [],
-    defaults: DEFAULT_DEFAULTS,
+    imageModels: [{
+      id: 'boio7-gpt-image',
+      protocol: 'openai',
+      name: 'BOIO7 Image',
+      modelId: 'gpt-image-2',
+      apiKey: '',
+      baseUrl,
+      builtinPreset: 'gpt-image-2',
+      maxRefImages: 16,
+      maxOutputSize: '4K',
+      supportsAdvancedParams: true,
+    }],
+    textModels: [{
+      id: 'boio7-text',
+      protocol: 'openai',
+      name: 'BOIO7 Text',
+      modelId: 'gpt-5.4-mini',
+      apiKey: '',
+      baseUrl,
+      note: 'BOIO7 gateway',
+    }],
+    defaults: {
+      textToImage: 'boio7-gpt-image',
+      imageToImage: 'boio7-gpt-image',
+      reversePrompt: 'boio7-text',
+      agent: 'boio7-text',
+      promptOptimize: 'boio7-text',
+      imageDescribe: 'boio7-text',
+    },
   };
 }
 
+export function enableClientRegistryStorage(): void {
+  clientRegistryStorageEnabled = true;
+}
+
 export function loadRegistry(): NovaModelRegistry {
-  if (typeof window === 'undefined') {
+  if (typeof window === 'undefined' || !clientRegistryStorageEnabled) {
     return getInitialRegistry();
   }
 
-  const raw = localStorage.getItem(REGISTRY_KEY);
-  if (!raw) {
+  try {
+    const raw = localStorage.getItem(REGISTRY_KEY);
+    if (!raw) {
+      return getInitialRegistry();
+    }
+
+    const parsed = JSON.parse(raw) as Partial<NovaModelRegistry>;
+    const imageModels = ensureImageModels(parsed.imageModels);
+    const textModels = ensureTextModels(parsed.textModels);
+    const defaults = ensureDefaults(parsed.defaults, imageModels, textModels);
+    return { imageModels, textModels, defaults };
+  } catch {
     return getInitialRegistry();
   }
-
-  const parsed = JSON.parse(raw) as Partial<NovaModelRegistry>;
-  const imageModels = ensureImageModels(parsed.imageModels);
-  const textModels = ensureTextModels(parsed.textModels);
-  const defaults = ensureDefaults(parsed.defaults, imageModels, textModels);
-  return { imageModels, textModels, defaults };
 }
 
 export function saveRegistry(registry: NovaModelRegistry): void {

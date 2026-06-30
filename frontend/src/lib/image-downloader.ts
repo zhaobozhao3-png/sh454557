@@ -1,4 +1,5 @@
 import { openImageDb, BLOBS_STORE } from '@/lib/image-db';
+import { resolveServerImageUrl } from '@/lib/app-paths';
 
 const MAX_FALLBACK_STORE_SIZE = 50;
 
@@ -324,7 +325,7 @@ export async function downloadAndStoreImages(
 
   const tasks = imageRefs.map(async (ref, i) => {
     if (!ref.startsWith('URL:')) return;
-    const url = ref.substring(4);
+    const url = resolveServerImageUrl(ref.substring(4));
     const emit = (item: ImageDownloadProgressItem) => {
       updateDownloadItem(items, item);
       options.onProgress?.(items[item.index]);

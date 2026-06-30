@@ -99,6 +99,7 @@ function getSettingsFallback(preferImageSettings: boolean): Partial<WorkbenchSet
 }
 
 export function ImageGenerationWorkbench({
+  wideMode = false,
   onSubmitText,
   onSubmitImage,
   disabled = false,
@@ -120,6 +121,7 @@ export function ImageGenerationWorkbench({
   const [gptImageAdvancedParams, setGptImageAdvancedParams] = useState<GptImageAdvancedParams>(DEFAULT_GPT_IMAGE_ADVANCED_PARAMS);
   const [parallelCount, setParallelCount] = useState<ParallelCount>(1);
   const [settingsReady, setSettingsReady] = useState(false);
+  const [registryRevision, setRegistryRevision] = useState(0);
 
   const [isDragOver, setIsDragOver] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -141,7 +143,7 @@ export function ImageGenerationWorkbench({
   const aspectRatioOptions = useMemo(() => getAspectRatioOptions(model, outputSize), [model, outputSize]);
   const currentMode: WorkbenchMode = pendingFiles.length > 0 ? 'image-to-image' : 'text-to-image';
   const autoLayoutLocked = outputSize === 'auto';
-  const disabledMessage = '请先在设置中配置 Nova API 密钥，配置完成后即可开始生成图片。';
+  const disabledMessage = '请先在 BOIO7 主站创建 API Key，系统识别后即可开始生成图片。';
 
   const handleParamsChange = useCallback((patch: Partial<GenerationParamsValue>) => {
     if (patch.model !== undefined) setModel(patch.model);
@@ -158,6 +160,12 @@ export function ImageGenerationWorkbench({
     textareaRef.current.style.height = 'auto';
     textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 200) + 'px';
   }, [prompt]);
+
+  useEffect(() => {
+    const handleRegistryUpdated = () => setRegistryRevision(prev => prev + 1);
+    window.addEventListener('nova-model-registry-updated', handleRegistryUpdated);
+    return () => window.removeEventListener('nova-model-registry-updated', handleRegistryUpdated);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -216,7 +224,7 @@ export function ImageGenerationWorkbench({
     return () => {
       cancelled = true;
     };
-  }, [initialData]);
+  }, [initialData, registryRevision]);
 
   useEffect(() => {
     if (!settingsReady) return;
@@ -564,19 +572,19 @@ export function ImageGenerationWorkbench({
   return (
     <div ref={formRef} className="space-y-4">
       <div className="bg-muted/50 border border-border rounded-xl shadow-md">
-        {disabled ? (
-          <div className="flex min-h-40 flex-col items-center justify-center gap-4 px-4 py-8 text-center">
-            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <Info className="h-5 w-5" />
+        {disabled && (
+          <div className="flex items-start gap-3 border-b border-border/70 px-4 py-3">
+            <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <Info className="h-4 w-4" />
             </div>
-            <div className="max-w-md">
-              <p className="text-base font-medium text-foreground">API 密钥未配置</p>
-              <p className="mt-2 text-sm text-muted-foreground">{disabledMessage}</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-foreground">API 密钥未配置</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">{disabledMessage}</p>
             </div>
-            <Button onClick={() => setMissingApiKeyDialogOpen(true)}>配置</Button>
+            <Button size="sm" onClick={() => setMissingApiKeyDialogOpen(true)}>配置</Button>
           </div>
-        ) : (
-          <>
+        )}
+        <>
             <div className="p-4 pb-2">
               <div className="flex gap-3">
                 <div
@@ -595,7 +603,7 @@ export function ImageGenerationWorkbench({
                     accept="image/*"
                     multiple
                     onChange={handleFileSelect}
-                    disabled={loading}
+                    disabled={disabled || loading}
                     className="absolute inset-0 h-full w-full cursor-pointer overflow-hidden opacity-0 disabled:cursor-not-allowed"
                     style={{ fontSize: 0 }}
                   />
@@ -611,7 +619,7 @@ export function ImageGenerationWorkbench({
                 <button
                   type="button"
                   onClick={() => setAssetPickerOpen(true)}
-                  disabled={loading || pendingFiles.length >= maxImages}
+                  disabled={disabled || loading || pendingFiles.length >= maxImages}
                   title="从素材库导入参考图"
                   className="flex flex-1 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-primary/30 bg-primary/5 px-3 py-4 text-center transition-all hover:border-primary/50 hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-50"
                 >
@@ -637,14 +645,24 @@ export function ImageGenerationWorkbench({
               </div>
             )}
 
+            <div className="border-t border-border/70 px-3 pt-3 sm:px-4 sm:pt-4">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  <span>提示词</span>
+                </div>
+                <span className="hidden text-xs text-muted-foreground sm:inline">描述画面、风格、细节后提交生成</span>
+              </div>
+            </div>
+
             <Textarea
               ref={textareaRef}
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={pendingFiles.length > 0 ? '描述如何调整参考图...' : '描述你想要生成的图像...'}
-              rows={3}
-              className="resize-none rounded-none border-0 bg-transparent px-3 pt-3 placeholder:text-placeholder focus-visible:border-0 focus-visible:ring-0 sm:px-4 sm:pt-4"
+              rows={wideMode ? 5 : 4}
+              className="mx-3 w-[calc(100%-1.5rem)] resize-none rounded-xl border border-border bg-background/80 px-3 py-3 placeholder:text-placeholder focus-visible:ring-2 focus-visible:ring-ring/30 sm:mx-4 sm:w-[calc(100%-2rem)] sm:px-4"
             />
 
             <div className="px-3 pt-2 pb-2 sm:px-4">
@@ -654,18 +672,22 @@ export function ImageGenerationWorkbench({
               />
             </div>
 
-            <div className="ml-auto flex w-full justify-end gap-2 px-3 pb-2 sm:w-auto sm:px-4">
-              <Button variant="ghost" size="icon" onClick={() => setQuickPromptOpen(true)} title="快速提示词">
+            <div className="ml-auto flex w-full flex-wrap justify-end gap-2 px-3 pb-3 sm:w-auto sm:px-4">
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setQuickPromptOpen(true)} title="快速提示词">
                 <Zap className="w-4 h-4" />
+                <span>快速提示词</span>
               </Button>
-              <Button variant="ghost" size="icon" onClick={() => setTextAssetPickerOpen(true)} title="导入提示词素材">
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setTextAssetPickerOpen(true)} title="导入提示词素材">
                 <FileText className="w-4 h-4" />
+                <span>提示词素材</span>
               </Button>
-              <Button variant="ghost" size="icon" onClick={() => void handleSavePromptAsset()} disabled={!prompt.trim()} title="存为提示词素材">
+              <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => void handleSavePromptAsset()} disabled={!prompt.trim()} title="存为提示词素材">
                 <Save className="w-4 h-4" />
+                <span className="hidden sm:inline">存为素材</span>
               </Button>
-              <Button variant="ghost" size="icon" onClick={handleOptimize} disabled={!prompt.trim()} title="优化提示词">
+              <Button variant="ghost" size="sm" className="gap-1.5" onClick={handleOptimize} disabled={!prompt.trim()} title="优化提示词">
                 <Sparkles className="w-4 h-4" />
+                <span className="hidden sm:inline">优化</span>
               </Button>
               <Button variant="outline" size="icon" onClick={handleClearDraft} disabled={!canClear} title="清空提示词和图片">
                 <X className="w-5 h-5" />
@@ -675,7 +697,6 @@ export function ImageGenerationWorkbench({
               </Button>
             </div>
           </>
-        )}
       </div>
 
       {uploadError && <p className="text-sm text-destructive">{uploadError}</p>}

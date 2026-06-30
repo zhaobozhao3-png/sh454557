@@ -1,6 +1,7 @@
 import type { GptImageBackground, GptImageQuality, GptImageStyle } from '@/lib/model-capabilities';
 import { makeStoredBlobRef, type ImageDownloadProgressItem } from '@/lib/image-downloader';
 import { openImageDb, IMG_STORE } from '@/lib/image-db';
+import { resolveServerImageUrl } from '@/lib/app-paths';
 
 export type Mode = 'text-to-image' | 'image-to-image' | 'prompt-gallery';
 export type OutputSize = 'auto' | '512' | '1K' | '2K' | '4K';
@@ -64,11 +65,11 @@ export function getImageSrc(imageData: string): string {
   }
 
   if (imageData.startsWith('URL:')) {
-    return imageData.substring(4);
+    return resolveServerImageUrl(imageData.substring(4));
   }
 
   if (imageData.startsWith('MULTI_URL:')) {
-    return imageData.substring(10).split('|||')[0];
+    return resolveServerImageUrl(imageData.substring(10).split('|||')[0]);
   }
 
   if (imageData.startsWith('IDB:')) {

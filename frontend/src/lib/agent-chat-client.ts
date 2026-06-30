@@ -11,11 +11,11 @@ import {
   type AgentProposal,
   type AgentActionType,
 } from '@/lib/agent-chat-config';
+import { buildResponsesApiUrl } from '@/lib/model-endpoints';
 import {
   normalizeGptImageBackground,
   normalizeGptImageQuality,
   normalizeGptImageStyle,
-  type AgentModelCatalogEntry,
 } from '@/lib/model-capabilities';
 
 import { readSseStream } from '@/lib/sse-stream-parser';
@@ -43,8 +43,6 @@ export interface StreamAgentInput {
   history: AgentMessage[];
   /** 当前可用图片目录 */
   catalog: AgentCatalogEntry[];
-  /** 当前可用图像模型目录（供 Agent 选择模型） */
-  modelCatalog: AgentModelCatalogEntry[];
   /** 是否启用联网搜索工具 */
   webSearch?: boolean;
 }
@@ -65,28 +63,12 @@ export interface StreamAgentHandle {
   promise: Promise<void>;
 }
 
-function buildInstructions(catalog: AgentCatalogEntry[], modelCatalog: AgentModelCatalogEntry[]): string {
-  let instructions = AGENT_SYSTEM_INSTRUCTIONS;
-
-  // 模型目录
-  if (modelCatalog.length > 0) {
-    const modelLines = modelCatalog
-      .map(m => `- id: ${m.id}, 名称: "${m.name}", 最大分辨率: ${m.maxOutputSize}`)
-      .join('\n');
-    instructions += `\n\n当前可用图像模型：\n${modelLines}`;
-  } else {
-    instructions += '\n\n当前可用图像模型：（空，请在设置中配置）';
-  }
-
-  // 图片目录
+function buildInstructions(catalog: AgentCatalogEntry[]): string {
   if (catalog.length === 0) {
-    instructions += '\n\n当前可用图片目录：（空，还没有任何图片）';
-  } else {
-    const lines = catalog.map(entry => `[${entry.imgId}] ${entry.description}`).join('\n');
-    instructions += `\n\n当前可用图片目录：\n${lines}`;
+    return `${AGENT_SYSTEM_INSTRUCTIONS}\n\n当前可用图片目录：（空，还没有任何图片）`;
   }
-
-  return instructions;
+  const lines = catalog.map(entry => `[${entry.imgId}] ${entry.description}`).join('\n');
+  return `${AGENT_SYSTEM_INSTRUCTIONS}\n\n当前可用图片目录：\n${lines}`;
 }
 
 function buildInputMessages(history: AgentMessage[]) {
@@ -151,9 +133,6 @@ function parseProposalArguments(raw: string): AgentProposal | null {
     const gptImageQuality = normalizeGptImageQuality(typeof parsed.gpt_image_quality === 'string' ? parsed.gpt_image_quality : undefined);
     const gptImageStyle = normalizeGptImageStyle(typeof parsed.gpt_image_style === 'string' ? parsed.gpt_image_style : undefined);
     const gptImageBackground = normalizeGptImageBackground(typeof parsed.gpt_image_background === 'string' ? parsed.gpt_image_background : undefined);
-    const requestedModelId = typeof parsed.requested_model_id === 'string' && parsed.requested_model_id.trim().length > 0
-      ? parsed.requested_model_id.trim()
-      : undefined;
 
     return {
       action,
@@ -168,7 +147,6 @@ function parseProposalArguments(raw: string): AgentProposal | null {
       gptImageQuality,
       gptImageStyle,
       gptImageBackground,
-      requestedModelId,
     };
   } catch {
     return null;
@@ -237,7 +215,7 @@ async function runAgentStream(
     model: input.model || AGENT_TEXT_MODEL_FALLBACK,
     stream: true,
     reasoning: { effort: 'medium' as const, summary: 'detailed' as const },
-    instructions: buildInstructions(input.catalog, input.modelCatalog),
+    instructions: buildInstructions(input.catalog),
     tools: input.webSearch
       ? [PROPOSE_IMAGE_ACTION_TOOL, { type: 'web_search' as const }]
       : [PROPOSE_IMAGE_ACTION_TOOL],
@@ -245,17 +223,14 @@ async function runAgentStream(
     input: buildInputMessages(input.history),
   };
 
-  const response = await fetch('/api/nova/proxy/text', {
+  const response = await fetch(buildResponsesApiUrl(baseUrl), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      protocol: 'openai',
-      baseUrl,
-      apiKey: input.apiKey,
-      model: input.model,
-      stream: true,
-      requestBody: body,
-    }),
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${input.apiKey}`,
+      Accept: 'text/event-stream',
+    },
+    body: JSON.stringify(body),
     signal,
   });
 
@@ -409,17 +384,13 @@ async function requestImageDescription(
     ],
   };
 
-  const response = await fetch('/api/nova/proxy/text', {
+  const response = await fetch(buildResponsesApiUrl(baseUrl), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      protocol: 'openai',
-      baseUrl,
-      apiKey,
-      model,
-      stream: false,
-      requestBody: body,
-    }),
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify(body),
     signal,
   });
 

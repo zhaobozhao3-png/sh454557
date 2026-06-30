@@ -38,7 +38,11 @@ function viewportAllowsWide(): boolean {
 
 function dismissBootLoader(): void {
   const el = document.getElementById('app-boot-loader');
-  if (el) el.remove();
+  if (!el) return;
+  el.setAttribute('aria-hidden', 'true');
+  el.style.opacity = '0';
+  el.style.pointerEvents = 'none';
+  el.style.transition = 'opacity 120ms ease-out';
 }
 
 /** 将宽度模式状态同步到 <html> 属性，确保 CSS 选择器始终有效 */

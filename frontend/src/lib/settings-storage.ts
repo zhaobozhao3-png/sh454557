@@ -27,7 +27,7 @@ export function getApiKeyFromStorage(): string {
 
 export function hasAnyApiKey(): boolean {
   const registry = loadRegistry();
-  return getCompleteImageModels(registry).length > 0 && getCompleteTextModels(registry).length > 0;
+  return getCompleteImageModels(registry).length > 0;
 }
 
 export function loadJsonFromStorage<T>(key: string): Partial<T> {

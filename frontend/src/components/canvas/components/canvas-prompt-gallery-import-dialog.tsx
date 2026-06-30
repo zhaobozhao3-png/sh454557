@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ALL_CATEGORY, DEFAULT_CATEGORIES, PROMPT_DATA_SOURCES, fetchAllPromptSources, getPromptSourceLabel, type PromptWithKey } from "@/lib/prompt-gallery-data";
+import { ALL_CATEGORY, DEFAULT_CATEGORIES, PROMPT_DATA_SOURCES, fetchPreferredPromptSources, getPromptSourceLabel, type PromptWithKey } from "@/lib/prompt-gallery-data";
+import { apiPath } from "@/lib/app-paths";
 import { cn } from "@/lib/utils";
 
 type CanvasPromptGalleryImportDialogProps = {
@@ -24,7 +25,7 @@ let cachedBlacklist: string[] | null = null;
 
 async function loadPromptGalleryData() {
   if (!cachedPromptData) {
-    cachedPromptData = await fetchAllPromptSources();
+    cachedPromptData = await fetchPreferredPromptSources();
   }
   if (!cachedBlacklist) {
     cachedBlacklist = await fetchPromptBlacklist();
@@ -34,7 +35,7 @@ async function loadPromptGalleryData() {
 
 async function fetchPromptBlacklist(): Promise<string[]> {
   try {
-    const response = await fetch("/api/nova/blacklist");
+    const response = await fetch(apiPath("/api/nova/blacklist"));
     if (!response.ok) return [];
     const data = await response.json();
     return Array.isArray(data.keywords) ? data.keywords.map((keyword: string) => keyword.toLowerCase()) : [];

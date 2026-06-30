@@ -51,6 +51,9 @@ export function HistoryImagePreview({
   const dragStart = useRef({ x: 0, y: 0 });
   const posStart = useRef({ x: 0, y: 0 });
   const frameRef = useRef<number | null>(null);
+  const historyPushedRef = useRef(false);
+  const closingViaHistoryRef = useRef(false);
+  const closeFallbackTimerRef = useRef<number | null>(null);
 
   // Touch refs for pinch-to-zoom and single-finger drag
   const touchRef = useRef({
@@ -106,6 +109,24 @@ export function HistoryImagePreview({
     setPos({ x: 0, y: 0 });
   }, [setScale, setPos]);
 
+  const closePreview = useCallback(() => {
+    if (
+      typeof window !== 'undefined'
+      && historyPushedRef.current
+      && !closingViaHistoryRef.current
+    ) {
+      closingViaHistoryRef.current = true;
+      window.history.back();
+      closeFallbackTimerRef.current = window.setTimeout(() => {
+        closeFallbackTimerRef.current = null;
+        onClose();
+      }, 300);
+      return;
+    }
+
+    onClose();
+  }, [onClose]);
+
   const zoomIn = useCallback(() => setScale(prev => Math.min(prev + 0.5, 10)), [setScale]);
   const zoomOut = useCallback(() => setScale(prev => {
     const next = prev - 0.5;
@@ -145,6 +166,40 @@ export function HistoryImagePreview({
     };
   }, []);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    try {
+      const currentState = window.history.state;
+      const nextState = currentState && typeof currentState === 'object'
+        ? { ...currentState, novaImagePreview: true }
+        : { novaImagePreview: true };
+      window.history.pushState(nextState, '', window.location.href);
+      historyPushedRef.current = true;
+    } catch {
+      historyPushedRef.current = false;
+    }
+
+    const handlePopState = () => {
+      if (closeFallbackTimerRef.current !== null) {
+        window.clearTimeout(closeFallbackTimerRef.current);
+        closeFallbackTimerRef.current = null;
+      }
+      closingViaHistoryRef.current = true;
+      onClose();
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      if (closeFallbackTimerRef.current !== null) {
+        window.clearTimeout(closeFallbackTimerRef.current);
+        closeFallbackTimerRef.current = null;
+      }
+      historyPushedRef.current = false;
+    };
+  }, [onClose]);
+
   useLayoutEffect(() => {
     applyTransform();
   }, [applyTransform, currentIndex]);
@@ -153,12 +208,12 @@ export function HistoryImagePreview({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'ArrowLeft') prevImage();
       if (event.key === 'ArrowRight') nextImage();
-      if (event.key === 'Escape') onClose();
+      if (event.key === 'Escape') closePreview();
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [nextImage, onClose, prevImage]);
+  }, [closePreview, nextImage, prevImage]);
 
   const handleWheel = useCallback((event: React.WheelEvent) => {
     event.preventDefault();
@@ -245,10 +300,22 @@ export function HistoryImagePreview({
       onWheel={handleWheel}
     >
       <button
-        onClick={onClose}
-        className="absolute top-4 right-4 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-black/40 text-white/70 transition-colors hover:bg-black/60 hover:text-white"
+        type="button"
+        onClick={closePreview}
+        className="absolute top-[max(1rem,env(safe-area-inset-top))] left-4 z-20 flex h-10 items-center gap-1.5 rounded-full bg-white/15 px-3 text-sm font-medium text-white shadow-lg backdrop-blur transition-colors hover:bg-white/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 sm:left-5"
+        aria-label="返回生图工具"
       >
-        <X className="w-5 h-5" />
+        <ChevronLeft className="h-4 w-4" />
+        返回工具
+      </button>
+
+      <button
+        type="button"
+        onClick={closePreview}
+        className="absolute top-[max(1rem,env(safe-area-inset-top))] right-4 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-white shadow-lg backdrop-blur transition-colors hover:bg-white/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 sm:right-5"
+        aria-label="关闭图片预览"
+      >
+        <X className="h-5 w-5" />
       </button>
 
       {isMultiple && (

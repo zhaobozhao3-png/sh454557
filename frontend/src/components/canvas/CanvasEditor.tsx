@@ -16,7 +16,6 @@ import { Minimap } from "./components/canvas-mini-map";
 import { CanvasZoomControls } from "./components/canvas-zoom-controls";
 import { CanvasToolbar } from "./components/canvas-toolbar";
 import { CanvasPromptGalleryImportDialog } from "./components/canvas-prompt-gallery-import-dialog";
-import { CanvasTemplateDialog, type CanvasTemplate } from "./components/canvas-template-dialog";
 import { CanvasContextMenu } from "./components/canvas-context-menu";
 import { CanvasConfigNodePanel } from "./components/canvas-config-node-panel";
 import { FullscreenImageViewer } from "./components/fullscreen-image-viewer";
@@ -51,7 +50,6 @@ type CanvasEditorProps = {
   onBack: () => void;
   onRequireApiKey: () => void;
   showToast: (message: string, type: "success" | "error" | "info") => void;
-  showPromptGallery?: boolean;
 };
 
 const MAX_HISTORY = 50;
@@ -133,7 +131,7 @@ async function optimizeImportedPromptContent(prompt: PromptWithKey, referenceIma
   return failed || !content ? { content: original, optimized: false } : { content, optimized: true };
 }
 
-export function CanvasEditor({ projectId, onBack, onRequireApiKey, showToast, showPromptGallery = true }: CanvasEditorProps) {
+export function CanvasEditor({ projectId, onBack, onRequireApiKey, showToast }: CanvasEditorProps) {
   const theme = canvasTheme;
   const openProject = useCanvasStore((state) => state.openProject);
   const updateProject = useCanvasStore((state) => state.updateProject);
@@ -160,7 +158,6 @@ export function CanvasEditor({ projectId, onBack, onRequireApiKey, showToast, sh
   const [assetPicker, setAssetPicker] = useState<{ open: boolean; nodeId: string | null }>({ open: false, nodeId: null });
   const [textAssetPicker, setTextAssetPicker] = useState<{ open: boolean; nodeId: string | null }>({ open: false, nodeId: null });
   const [promptGalleryOpen, setPromptGalleryOpen] = useState(false);
-  const [templateOpen, setTemplateOpen] = useState(false);
   const [promptGalleryImporting, setPromptGalleryImporting] = useState(false);
   const [viewportSize, setViewportSize] = useState({ width: 1280, height: 720 });
   const [miniMapOpen, setMiniMapOpen] = useState(false);
@@ -600,46 +597,6 @@ export function CanvasEditor({ projectId, onBack, onRequireApiKey, showToast, sh
       }
     },
     [createImageNode, defaultConfig, promptGalleryImporting, pushHistory, showToast, viewportCenterWorld],
-  );
-
-  const applyCanvasTemplate = useCallback(
-    (template: CanvasTemplate) => {
-      const center = viewportCenterWorld();
-      const textSpec = getNodeSpec(CanvasNodeType.Text);
-      const configSpec = getNodeSpec(CanvasNodeType.Config);
-      const gap = 80;
-
-      const textNode: CanvasNodeData = {
-        id: nanoid(),
-        type: CanvasNodeType.Text,
-        title: template.title,
-        position: { x: center.x - textSpec.width - gap / 2, y: center.y - textSpec.height / 2 },
-        width: textSpec.width,
-        height: textSpec.height,
-        metadata: { ...textSpec.metadata, content: template.prompt },
-      };
-
-      const composerContent = `参考提示词：@[node:${textNode.id}]`;
-      const configNode: CanvasNodeData = {
-        id: nanoid(),
-        type: CanvasNodeType.Config,
-        title: "流程模板生成配置",
-        position: { x: center.x + configSpec.width / 2 + gap / 2, y: center.y - configSpec.height / 2 },
-        width: configSpec.width,
-        height: configSpec.height,
-        metadata: { ...configSpec.metadata, genConfig: defaultConfig, composerContent },
-      };
-
-      const connection: CanvasConnection = { id: nanoid(), fromNodeId: textNode.id, toNodeId: configNode.id };
-
-      pushHistory();
-      setNodes((prev) => [...prev, textNode, configNode]);
-      setConnections((prev) => [...prev, connection]);
-      setSelectedIds([configNode.id]);
-      setTemplateOpen(false);
-      showToast(`已导入模板：${template.title}`, "success");
-    },
-    [defaultConfig, pushHistory, showToast, viewportCenterWorld],
   );
 
   const handleSaveToAssets = useCallback(
@@ -1504,12 +1461,10 @@ export function CanvasEditor({ projectId, onBack, onRequireApiKey, showToast, sh
         canRedo={redoStack.length > 0}
         backgroundMode={backgroundMode}
         showImageInfo={showImageInfo}
-        showPromptGallery={showPromptGallery}
         onAddImage={() => addNode(CanvasNodeType.Image)}
         onAddText={() => addNode(CanvasNodeType.Text)}
         onAddConfig={() => addNode(CanvasNodeType.Config)}
         onImportPromptGallery={() => setPromptGalleryOpen(true)}
-        onOpenTemplate={() => setTemplateOpen(true)}
         onUndo={undo}
         onRedo={redo}
         onDelete={() => deleteNodes(selectedIds)}
@@ -1576,8 +1531,6 @@ export function CanvasEditor({ projectId, onBack, onRequireApiKey, showToast, sh
       <AgentTextAssetPickerDialog open={textAssetPicker.open} onOpenChange={(open) => setTextAssetPicker((prev) => ({ ...prev, open }))} onConfirm={handleTextAssetPickerConfirm} />
 
       <CanvasPromptGalleryImportDialog open={promptGalleryOpen} importing={promptGalleryImporting} onOpenChange={setPromptGalleryOpen} onConfirm={(prompt) => void importPromptGalleryTemplate(prompt)} />
-
-      <CanvasTemplateDialog open={templateOpen} onOpenChange={setTemplateOpen} onConfirm={(template) => applyCanvasTemplate(template)} />
 
       <PromptOptimizeDialog
         open={optimizeOpen}

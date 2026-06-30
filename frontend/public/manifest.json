@@ -1,9 +1,9 @@
 {
-    "id": "/",
-    "name": "Nova Image Studio - AI 图像生成器",
-    "short_name": "Nova Image",
-    "description": "Nova Image AI 图像生成器",
-    "start_url": "/",
+    "id": ".",
+    "name": "BOIO7 Image - AI 图像生成器",
+    "short_name": "BOIO7 Image",
+    "description": "BOIO7 AI 图像生成器",
+    "start_url": ".",
     "display": "standalone",
     "display_override": ["window-controls-overlay", "standalone"],
     "background_color": "#f5f5fa",
@@ -12,19 +12,19 @@
     "categories": ["utilities", "productivity", "photo"],
     "icons": [
         {
-            "src": "/icon-192.png",
+            "src": "boio7-icon-192.png",
             "sizes": "192x192",
             "type": "image/png",
             "purpose": "any"
         },
         {
-            "src": "/icon-512.png",
+            "src": "boio7-icon-512.png",
             "sizes": "512x512",
             "type": "image/png",
             "purpose": "any"
         },
         {
-            "src": "/icon-maskable-512.png",
+            "src": "boio7-icon-maskable-512.png",
             "sizes": "512x512",
             "type": "image/png",
             "purpose": "maskable"
@@ -32,18 +32,18 @@
     ],
     "screenshots": [
         {
-            "src": "/screenshot-wide.png",
+            "src": "screenshot-wide.png",
             "sizes": "1280x720",
             "type": "image/png",
             "form_factor": "wide",
-            "label": "Nova Image 应用主界面"
+            "label": "BOIO7 Image 应用主界面"
         },
         {
-            "src": "/screenshot-narrow.png",
+            "src": "screenshot-narrow.png",
             "sizes": "720x1280",
             "type": "image/png",
             "form_factor": "narrow",
-            "label": "Nova Image 移动端界面"
+            "label": "BOIO7 Image 移动端界面"
         }
     ],
     "edge_side_panel": {

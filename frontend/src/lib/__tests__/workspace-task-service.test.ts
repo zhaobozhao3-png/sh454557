@@ -86,6 +86,7 @@ beforeEach(() => {
     apiKey: 'test-api-key',
     baseUrl: 'https://api.openai.com',
     protocol: 'openai',
+    modelId: 'gpt-image-2',
   });
 });
 
@@ -115,9 +116,10 @@ describe('submitTextToImage', () => {
       gptImageBackground: 'transparent',
     }));
     expect(actions.addJob).toHaveBeenCalledWith(expect.objectContaining({
-      gptImageQuality: 'high',
-      gptImageStyle: 'vivid',
-      gptImageBackground: 'transparent',
+      model: 'gpt-image-2',
+      gptImageQuality: 'auto',
+      gptImageStyle: 'auto',
+      gptImageBackground: 'auto',
     }));
     expect(getJob().serverTaskId).toBe('task-advanced-1');
   });

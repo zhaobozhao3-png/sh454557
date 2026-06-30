@@ -66,7 +66,7 @@ describe('TextToImageForm', () => {
     render(
       <TextToImageForm
         onSubmit={onSubmit}
-        initialData={{ model: 'gpt-image-2', prompt: 'Cut out the subject' }}
+        initialData={{ model: 'boio7-gpt-image', prompt: 'Cut out the subject' }}
       />
     )
 
@@ -75,7 +75,7 @@ describe('TextToImageForm', () => {
     fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: true })
 
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
-      model: 'gpt-image-2',
+      model: 'boio7-gpt-image',
       gptImageQuality: 'auto',
       gptImageStyle: 'auto',
       gptImageBackground: 'auto',

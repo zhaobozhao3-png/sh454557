@@ -9,6 +9,7 @@ import { ackNovaTask, createNovaTask, getNovaTask, resolveImageTaskProvider, typ
 import { normalizeModel } from "@/lib/model-capabilities";
 import { compressReferenceDataUrl } from "./lib/image-utils";
 import { uploadImage } from "./lib/image-storage";
+import { resolveServerImageUrl } from "@/lib/app-paths";
 import type { CanvasGenerationConfig } from "./types";
 import type { ReferenceImage } from "./types-media";
 
@@ -157,7 +158,7 @@ export async function generateCanvasImages(args: {
 
 /** 结果可能是 data URL 或 `URL:/api/nova/images/...`；统一下载为 blob 存入本地 IndexedDB。 */
 async function storeResultImage(image: string): Promise<CanvasGeneratedImage | null> {
-  const realUrl = image.startsWith("URL:") ? image.slice(4) : image;
+  const realUrl = image.startsWith("URL:") ? resolveServerImageUrl(image.slice(4)) : image;
   if (!realUrl) return null;
   try {
     const stored = await uploadImage(realUrl);

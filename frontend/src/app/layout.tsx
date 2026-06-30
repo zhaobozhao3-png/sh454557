@@ -3,21 +3,22 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import Script from "next/script";
 import { ServiceWorkerManager } from "@/components/ServiceWorkerManager";
+import { assetPath } from "@/lib/app-paths";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Nova Image - AI 图像生成器",
-  description: "Nova Image AI 图像生成工作台",
+  title: "BOIO7 Image - AI 图像生成器",
+  description: "BOIO7 AI 图像生成工作台",
   icons: {
     icon: [
-      { url: '/favicon.png', type: 'image/png' },
-      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
-      { url: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+      { url: assetPath('/boio7-favicon.png'), type: 'image/png' },
+      { url: assetPath('/boio7-icon-192.png'), sizes: '192x192', type: 'image/png' },
+      { url: assetPath('/boio7-icon-512.png'), sizes: '512x512', type: 'image/png' },
     ],
-    shortcut: '/favicon.png',
-    apple: '/icon-192.png',
+    shortcut: assetPath('/boio7-favicon.png'),
+    apple: assetPath('/boio7-icon-192.png'),
   },
-  manifest: '/manifest.json',
+  manifest: assetPath('/manifest.json'),
   other: {
     'theme-color': '#1a1a2e',
   },

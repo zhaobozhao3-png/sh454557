@@ -9,7 +9,7 @@ import {
   type ReversePromptMode,
   type ReversePromptModelId,
 } from '@/lib/reverse-prompt-config';
-import { getConfiguredTextModel } from '@/lib/model-endpoints';
+import { buildGeminiStreamGenerateContentUrl, buildResponsesApiUrl, getConfiguredTextModel } from '@/lib/model-endpoints';
 import { readSseStream } from '@/lib/sse-stream-parser';
 
 export interface StreamReverseInput {
@@ -100,17 +100,14 @@ async function streamOpenAiResponses(
     ],
   };
 
-  const response = await fetch('/api/nova/proxy/text', {
+  const response = await fetch(buildResponsesApiUrl(baseUrl), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      protocol: 'openai',
-      baseUrl,
-      apiKey: input.apiKey,
-      model: input.model,
-      stream: true,
-      requestBody: body,
-    }),
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${input.apiKey}`,
+      Accept: 'text/event-stream',
+    },
+    body: JSON.stringify(body),
     signal,
   });
 
@@ -233,17 +230,16 @@ async function streamGeminiGenerateContent(
     },
   };
 
-  const response = await fetch('/api/nova/proxy/text', {
+  const url = buildGeminiStreamGenerateContentUrl(baseUrl, input.model);
+  const response = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      protocol: 'google',
-      baseUrl,
-      apiKey: input.apiKey,
-      model: input.model,
-      stream: true,
-      requestBody: body,
-    }),
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${input.apiKey}`,
+      'x-goog-api-key': input.apiKey,
+      Accept: 'text/event-stream',
+    },
+    body: JSON.stringify(body),
     signal,
   });
 
